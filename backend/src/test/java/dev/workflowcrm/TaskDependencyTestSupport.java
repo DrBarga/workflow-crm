@@ -31,15 +31,30 @@ abstract class TaskDependencyTestSupport extends ObjectStatusTasksSupport {
     ApplicationEventPublisher publisher;
 
     UUID set() {
+        return set("FOUND");
+    }
+
+    UUID set(String triggerStatus) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "insert into task_sets(id,object_id,trigger_status_id) values (?,?,?)", id, object, statusId("FOUND"));
+                "insert into task_sets(id,object_id,trigger_status_id) values (?,?,?)",
+                id,
+                object,
+                statusId(triggerStatus));
         return id;
     }
 
     UUID node(UUID set, String status) {
         UUID id = task(status);
-        jdbc.update("update tasks set task_set_id=?,needs_review=false where id=?", set, id);
+        if (set == null) {
+            jdbc.update("update tasks set needs_review=false where id=?", id);
+        } else {
+            jdbc.update(
+                    "update tasks set task_set_id=?,source_status_id=(select trigger_status_id from task_sets where id=?),needs_review=false where id=?",
+                    set,
+                    set,
+                    id);
+        }
         return id;
     }
 

@@ -28,7 +28,7 @@ class TaskDependencyCancellationIT extends TaskDependencyTestSupport {
 
     @Test
     void cancellationFollowsCrossSetDependenciesWithoutTouchingUnrelatedSet() {
-        UUID firstSet = set(), secondSet = set(), untouchedSet = set();
+        UUID firstSet = set("FOUND"), secondSet = set("IN_PROGRESS"), untouchedSet = set("IC_PREPARATION");
         UUID first = node(firstSet, "IN_PROGRESS"),
                 dependent = node(secondSet, "NEW"),
                 sibling = node(secondSet, "IN_PROGRESS"),
