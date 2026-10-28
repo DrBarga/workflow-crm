@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261013_object_cancel_all
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261013_object_cancel_all.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261013_object_cancel_all_rollback.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 20261013_object_data_sources
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261013_object_data_sources.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql:
+            sql: ALTER TABLE objects DROP COLUMN data_source_id; DROP TABLE object_data_sources;

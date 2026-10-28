@@ -1,0 +1,95 @@
+openapi: 3.0.3
+info:
+  title: Workflow CRM - Task set preview
+  version: 1.0.0
+paths:
+  /api/objects/{id}/task-preview:
+    get:
+      operationId: previewObjectTaskSet
+      summary: Preview the task set without saving the transition or tasks
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: status
+          in: query
+          required: true
+          description: Active object status code, such as IN_PROGRESS
+          schema: {type: string}
+      responses:
+        '200':
+          description: Calculated task set or templateFound=false
+          headers:
+            Cache-Control:
+              schema: {type: string, enum: [no-store]}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSetPreview'}
+        '400': {description: Missing status parameter or malformed UUID}
+        '401': {description: Authentication required}
+        '403': {description: Full object access is required}
+        '404': {description: Object not found}
+        '409': {description: TASK_TEMPLATE_CONFIGURATION_ERROR - ambiguous template or invalid dependencies}
+        '422': {description: Unknown or inactive object status}
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: workflow_access_token
+  schemas:
+    TaskSetPreview:
+      type: object
+      required: [templateId, revision, templateFound, triggerDate, tasks]
+      properties:
+        templateId: {type: string, format: uuid, nullable: true}
+        revision: {type: string}
+        templateFound: {type: boolean}
+        triggerDate:
+          type: string
+          format: date
+          description: Date of the proposed status transition in Europe/Kyiv
+        tasks:
+          type: array
+          items: {$ref: '#/components/schemas/PlannedTask'}
+    PlannedTask:
+      type: object
+      required: [templateItemId, name, assigneeId, assigneeName, deadline, needsReview, resultRecipientRoleId, resultRecipientId, escalationDays, predecessors, assignment]
+      properties:
+        templateItemId: {type: string, format: uuid}
+        code: {type: string, nullable: true, maxLength: 100, pattern: '^[A-Z][A-Z0-9_]{0,99}$'}
+        name: {type: string}
+        assigneeId: {type: string, format: uuid, nullable: true}
+        assigneeName: {type: string, nullable: true}
+        deadline:
+          type: string
+          format: date
+          description: Trigger date plus the template calendar offset, including weekends. Zero means the trigger date; predecessors do not shift it.
+        needsReview: {type: boolean}
+        resultRecipientRoleId: {type: string, format: uuid, nullable: true}
+        resultRecipientId: {type: string, format: uuid, nullable: true}
+        escalationDays: {type: integer, nullable: true}
+        predecessors:
+          type: array
+          description: Template item IDs from this response
+          items: {type: string, format: uuid}
+        assignment:
+          type: object
+          required: [rule, roleId, issue, selectionRequired, candidates, message]
+          properties:
+            rule:
+              type: string
+              enum: [EXPLICIT_USER, OBJECT_MANAGER, REGIONAL_ROLE, NETWORK_ROLE]
+            roleId: {type: string, format: uuid, nullable: true}
+            selectionRequired: {type: boolean}
+            message: {type: string, nullable: true}
+            candidates:
+              type: array
+              items: {$ref: './task-assignment.yaml#/components/schemas/Candidate'}
+            issue:
+              type: string
+              nullable: true
+              enum: [NOT_FOUND, INACTIVE, OUTSIDE_REGION, AMBIGUOUS, null]

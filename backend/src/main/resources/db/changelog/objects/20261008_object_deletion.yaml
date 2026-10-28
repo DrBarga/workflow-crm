@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261008-object-deletion
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261008_object_deletion.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'
+      rollback:
+        - sqlFile:
+            path: 20261008_object_deletion_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'

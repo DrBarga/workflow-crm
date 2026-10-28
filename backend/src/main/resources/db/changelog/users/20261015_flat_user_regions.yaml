@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261015-flat-user-regions
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261015_flat_user_regions.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+      rollback:
+        - sqlFile:
+            path: 20261015_flat_user_regions_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true

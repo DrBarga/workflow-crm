@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261010-object-imports
+      author: workflowcrm
+      changes:
+        - sql: |
+            CREATE TABLE object_imports (
+                id uuid PRIMARY KEY,
+                actor_id uuid NOT NULL,
+                file_hash varchar(64) NOT NULL UNIQUE,
+                state varchar(12) NOT NULL DEFAULT 'QUEUED' CHECK(state IN ('QUEUED','COMPLETED','FAILED')),
+                row_count integer NOT NULL CHECK(row_count BETWEEN 0 AND 10000),
+                created_count integer NOT NULL DEFAULT 0,
+                rejected_count integer NOT NULL DEFAULT 0,
+                duplicate_count integer NOT NULL DEFAULT 0,
+                requested_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at timestamptz,
+                next_attempt_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                attempts integer NOT NULL DEFAULT 0 CHECK(attempts>=0),
+                error varchar(40)
+            );
+            CREATE INDEX ix_object_imports_queue ON object_imports(next_attempt_at,requested_at,id) WHERE state='QUEUED';
+            CREATE TABLE object_import_rows (
+                import_id uuid NOT NULL REFERENCES object_imports(id) ON DELETE CASCADE,
+                row_number integer NOT NULL CHECK(row_number>=2),
+                input jsonb,
+                state varchar(12) NOT NULL DEFAULT 'PENDING' CHECK(state IN ('PENDING','CREATED','REJECTED','NOT_APPLIED')),
+                object_id uuid,
+                possible_duplicate boolean NOT NULL DEFAULT false,
+                note varchar(100),
+                errors jsonb NOT NULL DEFAULT '[]',
+                PRIMARY KEY(import_id,row_number)
+            );
+            CREATE TABLE object_import_audit (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                import_id uuid NOT NULL,
+                actor_id uuid NOT NULL,
+                event_type varchar(30) NOT NULL,
+                detail jsonb NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX ix_object_import_audit_actor ON object_import_audit(actor_id,created_at,id);
+      rollback:
+        - sql: DROP TABLE object_import_audit; DROP TABLE object_import_rows; DROP TABLE object_imports;

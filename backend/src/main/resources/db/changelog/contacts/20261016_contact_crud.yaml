@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261016_contact_crud
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261016_contact_crud.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261016_contact_crud_rollback.sql
+            relativeToChangelogFile: true

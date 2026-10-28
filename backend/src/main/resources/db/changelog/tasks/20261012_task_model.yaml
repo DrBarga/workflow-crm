@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261012-task-model
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261012_task_versions.sql, relativeToChangelogFile: true}
+        - sqlFile: {path: 20261012_task_sets.sql, relativeToChangelogFile: true}
+        - sqlFile: {path: 20261012_task_backfill.sql, relativeToChangelogFile: true}
+      rollback:
+        - sqlFile: {path: 20261012_task_model_rollback.sql, relativeToChangelogFile: true}

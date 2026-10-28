@@ -1,0 +1,1541 @@
+openapi: 3.0.3
+info:
+  title: Workflow CRM - Objects
+  version: 1.18.0
+  description: 'T5771-T5775, T5778-T5780, T5782-T5785, T6797. Создание, дубли, список, карточка, история, редактирование, перепривязка, комментарии, файлы, карта, импорт, экспорт и физическое удаление.'
+paths:
+  /api/file-categories:
+    $ref: 'frontend-object-api.json#/paths/~1api~1file-categories'
+  /api/regions:
+    $ref: 'frontend-object-api.json#/paths/~1api~1regions'
+  /api/data-sources:
+    $ref: 'frontend-object-api.json#/paths/~1api~1data-sources'
+  /api/contract-types:
+    $ref: 'frontend-object-api.json#/paths/~1api~1contract-types'
+  /api/managers:
+    $ref: 'frontend-object-api.json#/paths/~1api~1managers'
+  /api/contacts:
+    $ref: 'frontend-object-api.json#/paths/~1api~1contacts'
+  /api/objects/{id}/contacts:
+    $ref: 'frontend-object-api.json#/paths/~1api~1objects~1{id}~1contacts'
+  /api/objects/{id}/mentionable-users:
+    $ref: 'frontend-object-api.json#/paths/~1api~1objects~1{id}~1mentionable-users'
+  /api/objects/{id}/tasks:
+    $ref: 'frontend-object-api.json#/paths/~1api~1objects~1{id}~1tasks'
+  /api/geo/search:
+    $ref: 'frontend-object-api.json#/paths/~1api~1geo~1search'
+  /api/geo/reverse:
+    $ref: 'frontend-object-api.json#/paths/~1api~1geo~1reverse'
+  /api/objects/import:
+    post:
+      operationId: importObjects
+      tags: [Objects]
+      summary: Асинхронный импорт объектов по шаблону
+      description: 'Только активный SUPERADMIN. CSV UTF-8 или XLSX по шаблону v2, 20 МБ, до 10000 строк. openingPlannedDate отсутствует во входных колонках: вычисляется из constructionAcceptancePlannedDate и commercialTerms.constructionTermDays в календарных днях; при пустом исходном поле остаётся null. Проверка всех строк до применения. Валидные строки создаются в FOUND. Идентичные байты возвращают прежнее задание. Подробнее object-import.md.'
+      security: [{accessCookie: [], csrfHeader: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '202':
+          description: 'Задание принято; Cache-Control no-store'
+          headers:
+            Location: {schema: {type: string}, description: URL состояния импорта}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectImportState'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Нет права на импорт или неверный CSRF}
+        '413': {description: Превышен размер multipart-запроса}
+        '422': {description: Файл не соответствует шаблону или ограничениям}
+        '429': {description: Очередь из десяти заданий заполнена}
+  /api/objects/import/template:
+    get:
+      operationId: downloadObjectImportTemplate
+      tags: [Objects]
+      summary: Скачать шаблон импорта v2
+      description: 'Технические и коммерческие поля, вводимые даты и короткий комментарий. Колонки openingPlannedDate нет: дата открытия вычисляется системой.'
+      security: [{accessCookie: []}]
+      parameters:
+        - in: query
+          name: format
+          schema: {type: string, enum: [csv, xlsx], default: xlsx}
+      responses:
+        '200':
+          description: 'Шаблон с фиксированными заголовками; Content-Disposition attachment; filename=objects-import-v2.csv или objects-import-v2.xlsx, Cache-Control no-store'
+          content:
+            text/csv:
+              schema: {type: string, format: binary}
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Только активный SUPERADMIN}
+        '422': {description: Неверный формат шаблона}
+  /api/objects/imports/{id}:
+    get:
+      operationId: getObjectImport
+      tags: [Objects]
+      summary: Состояние импорта
+      security: [{accessCookie: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: 'QUEUED включает активную обработку и ожидание повторной попытки; Cache-Control no-store'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectImportState'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Только активный SUPERADMIN}
+        '404': {description: Импорт не найден}
+  /api/objects/imports/{id}/report:
+    get:
+      operationId: getObjectImportReport
+      tags: [Objects]
+      summary: Построчный отчёт импорта
+      security: [{accessCookie: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 200, default: 100}
+      responses:
+        '200':
+          description: 'Номера записей начинаются с 2, исходные данные не выдаются; Cache-Control no-store'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectImportReport'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Только активный SUPERADMIN}
+        '404': {description: Импорт не найден}
+        '422': {description: Неверная пагинация}
+  /api/objects/export:
+    post:
+      operationId: exportObjects
+      tags: [Objects]
+      summary: Асинхронный экспорт реестра объектов
+      description: 'T5784. Провідний — явно назначенные регионы; директор, CEO и Адміністратор — вся сеть. Менеджер и Погодження договорів получают 403. Фильтры и сортировка списка; без limit/cursor. Подробнее object-export.md.'
+      security: [{accessCookie: [], csrfHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectExportRequest'}
+      responses:
+        '202':
+          description: 'Выгрузка поставлена в очередь; Cache-Control no-store'
+          headers:
+            Location: {schema: {type: string}, description: URL состояния выгрузки}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectExportState'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Нет права на экспорт или неверный CSRF}
+        '422':
+          description: Неверный формат, фильтр или неизвестное поле
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+        '429': {description: 'Не более двух ожидающих выгрузок на пользователя и ста на базу'}
+  /api/objects/exports/{id}:
+    get:
+      operationId: getObjectExport
+      tags: [Objects]
+      summary: Состояние своей выгрузки
+      description: 'Текущие права и регионы должны совпадать с запросом. QUEUED включает обработку и повтор. Cache-Control no-store.'
+      security: [{accessCookie: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Состояние, число строк и код ошибки
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectExportState'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Нет права на экспорт или права изменились}
+        '404': {description: Выгрузка отсутствует или принадлежит другому пользователю}
+  /api/objects/exports/{id}/download:
+    get:
+      operationId: downloadObjectExport
+      tags: [Objects]
+      summary: Подписанная ссылка на готовую выгрузку
+      description: 'Только инициатор с прежними правами. Срок ссылки до пяти минут по умолчанию, не дольше хранения артефакта. Cache-Control no-store.'
+      security: [{accessCookie: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Временная ссылка MinIO
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url: {type: string, format: uri}
+                  expiresAt: {type: string, format: date-time}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Нет права на экспорт или права изменились}
+        '404': {description: Выгрузка отсутствует или чужая}
+        '409': {description: Выгрузка не готова}
+        '410': {description: Срок хранения выгрузки истёк}
+        '503': {description: Хранилище недоступно}
+  /api/objects/map:
+    get:
+      operationId: mapObjects
+      tags: [Objects]
+      summary: Пины объектов в видимой области карты
+      description: 'T5783. Те же фильтры и BRL-11, что у списка. Статус отсутствует при ограниченном просмотре. До 2000 пинов; truncated=true означает, что область надо сузить. Подробнее object-map.md.'
+      security: [{accessCookie: []}]
+      parameters:
+        - {in: query, name: status, schema: {type: string, maxLength: 64}, description: 'Код статуса; неизвестный код даёт пустую страницу'}
+        - {in: query, name: managerId, schema: {type: string, format: uuid}}
+        - {in: query, name: regionId, schema: {type: string, format: uuid}}
+        - {in: query, name: objectType, schema: {type: string, maxLength: 64}}
+        - {in: query, name: createdFrom, schema: {type: string, format: date}, description: 'Дата создания от, включительно в UTC'}
+        - {in: query, name: createdTo, schema: {type: string, format: date}, description: 'Дата создания до, включительно в UTC'}
+        - {in: query, name: q, schema: {type: string, minLength: 1, maxLength: 200}, description: 'Подстрока названия или адреса с полным доступом; регистр не учитывается, wildcard-символы считаются буквальными'}
+        - in: query
+          name: bbox
+          required: true
+          description: 'west,south,east,north в WGS84; границы включительно; west < east, south < north. Пересечение антимеридиана не поддерживается.'
+          schema: {type: string, maxLength: 256, example: '30,50,31,51'}
+      responses:
+        '200':
+          description: 'Компактные пины, лимит и признак усечения; Cache-Control no-store'
+          headers:
+            Cache-Control: {schema: {type: string, example: no-store}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectMapResult'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: 'Пользователь отсутствует, неактивен или без права на раздел'}
+        '422':
+          description: 'Некорректный, отсутствующий или повторный bbox; неверный фильтр, неизвестный параметр или параметры пагинации списка'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+  /api/objects/{id}/files:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listObjectFiles
+      tags: [Objects]
+      summary: Файлы объекта с авторами, категориями и датами
+      description: 'BRL-11; CONTRACT_MANAGER видит всю сеть. SUPERADMIN не видит ограниченные категории. Фильтрация прав до пагинации. См. object-files.md.'
+      security: [{accessCookie: []}]
+      parameters:
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {in: query, name: cursor, schema: {type: string, maxLength: 192}}
+      responses:
+        '200':
+          description: Страница видимых файлов, Cache-Control no-store
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectFilePage'}
+        '400': {description: Некорректный UUID или тип limit}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права просмотра}
+        '404': {description: Объект отсутствует}
+        '409': {description: Выполняется удаление объекта}
+        '422': {description: Некорректный курсор или limit}
+    post:
+      operationId: uploadObjectFile
+      tags: [Objects]
+      summary: Загрузить файл с категорией из справочника
+      description: 'MANAGER свои объекты в назначенных регионах, REGIONAL_MANAGER явно назначенные регионы, DEVELOPMENT_DIRECTOR и CONTRACT_MANAGER вся сеть. CEO и SUPERADMIN получают 403. Автор, время, MIME и ключ назначаются сервером.'
+      security: [{accessCookie: [], csrfHeader: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, categoryId]
+              properties:
+                file: {type: string, format: binary, description: 'Один файл, до 20971520 байт; jpg,png,pdf,docx,xlsx,dwg'}
+                categoryId: {type: string, format: uuid, description: ID активной категории}
+      responses:
+        '201':
+          description: Файл сохранён в MinIO и опубликован с историей
+          headers:
+            Location: {schema: {type: string}, description: Путь API файла}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectFile'}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права загрузки или CSRF}
+        '404': {description: Объект отсутствует}
+        '409': {description: Выполняется удаление объекта}
+        '413': {description: Multipart превышает HTTP лимит}
+        '415': {description: Требуется multipart/form-data}
+        '422': {description: 'Некорректная категория, имя, формат, содержимое, размер или лишние поля'}
+        '503': {description: MinIO недоступен}
+  /api/objects/{id}/files/{fileId}:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: fileId, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getObjectFileLink
+      tags: [Objects]
+      summary: Получить временную ссылку на файл
+      description: 'Права такие же, как в списке. SUPERADMIN запрашивает договор: 403. Подписанный URL отдаёт attachment; срок по умолчанию пять минут. Cache-Control no-store.'
+      security: [{accessCookie: []}]
+      responses:
+        '200':
+          description: Presigned GET URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url: {type: string, format: uri}
+                  expiresAt: {type: string, format: date-time}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права просмотра файла или категории}
+        '404': {description: 'Объект или файл отсутствует, файл удалён или принадлежит другому объекту'}
+        '409': {description: Выполняется удаление объекта}
+        '503': {description: MinIO недоступен}
+    delete:
+      operationId: deleteObjectFile
+      tags: [Objects]
+      summary: Мягко удалить файл с записью в историю
+      description: 'MANAGER свои файлы или файлы своих объектов; REGIONAL_MANAGER явно назначенные регионы; CONTRACT_MANAGER только свои файлы; SUPERADMIN все файлы, кроме ограниченных категорий (Договори): 403. DEVELOPMENT_DIRECTOR и CEO получают 403. canDelete использует те же права. Комментарий сохраняется, его ссылка API даёт 404. Ранее выданная подпись MinIO действует до истечения срока.'
+      security: [{accessCookie: [], csrfHeader: []}]
+      responses:
+        '204': {description: 'Файл исключён из API, запись и история сохранены атомарно'}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права удаления или CSRF}
+        '404': {description: 'Файл отсутствует, удалён или принадлежит другому объекту'}
+        '409': {description: Выполняется удаление объекта}
+  /api/objects/{id}/comments:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listObjectComments
+      tags: [Objects]
+      summary: Комментарии объекта с курсорной пагинацией
+      description: 'Полный просмотр BRL-11; CONTRACT_MANAGER видит всю сеть независимо от статуса объекта. Порядок sequence по возрастанию. Курсор фиксирует верхнюю границу первой страницы, новые записи видны при новом чтении. Права проверяются на каждой странице. Cache-Control no-store. Подробности в object-comments.md.'
+      security:
+        - accessCookie: []
+      parameters:
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {in: query, name: cursor, schema: {type: string, maxLength: 192}, description: nextCursor предыдущей страницы того же объекта}
+      responses:
+        '200':
+          description: Страница комментариев
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectCommentPage'}
+        '400': {description: Некорректный UUID или тип limit}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права просмотра комментариев}
+        '404': {description: Объект отсутствует или удалён}
+        '409': {description: Удаление объекта выполняется}
+        '422': {description: Некорректный курсор или limit вне диапазона 1-100}
+    post:
+      operationId: createObjectComment
+      tags: [Objects]
+      summary: Добавление комментария от текущего пользователя
+      description: 'MANAGER — свои объекты; REGIONAL_MANAGER — явно назначенные регионы; DEVELOPMENT_DIRECTOR и CONTRACT_MANAGER — вся сеть. CEO/SUPERADMIN только читают. Автор и время определяются сервером. Текст сохраняется без интерпретации HTML. Cache-Control no-store.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectCommentCreate'}
+      responses:
+        '201':
+          description: Комментарий создан
+          headers:
+            Location: {schema: {type: string}, description: '/api/objects/{id}/comments/{commentId}'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectComment'}
+        '400': {description: Некорректный JSON или UUID}
+        '401': {description: Требуется авторизация}
+        '403': {description: Нет права добавления или отсутствует CSRF}
+        '404': {description: Объект отсутствует или удалён}
+        '409': {description: Удаление объекта выполняется}
+        '422': {description: 'Пустой текст, более 1000 символов, некорректный Unicode или неизвестное поле; violations содержит поле и лимит'}
+  /api/objects/{id}/comments/{commentId}:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: commentId, required: true, schema: {type: string, format: uuid}}
+    patch:
+      operationId: editObjectComment
+      tags: [Objects]
+      summary: Редактирование своего комментария
+      description: 'Нужны авторство и текущее право добавления к объекту. version относится к комментарию. Изменение помечается відредаговано; одинаковый текст с актуальной версией не изменяет метаданные. Версия объекта не меняется.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectCommentEdit'}
+      responses:
+        '200':
+          description: Комментарий сохранён; Cache-Control no-store
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectComment'}
+        '400': {description: Некорректный JSON или UUID}
+        '401': {description: Требуется авторизация}
+        '403': {description: 'Другой автор, утрачены права или отсутствует CSRF'}
+        '404': {description: Комментарий или объект отсутствует; комментарий другого объекта}
+        '409':
+          description: 'Устаревшая версия комментария с currentVersion; либо удаление объекта выполняется'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+        '422': {description: 'Некорректный текст, версия или неизвестное поле'}
+    delete:
+      operationId: deleteObjectComment
+      tags: [Objects]
+      summary: Удаление своего комментария
+      description: 'Нужны авторство и текущее право добавления к объекту. Запись удаления сохраняется в истории. Cache-Control no-store.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      responses:
+        '204': {description: Комментарий удалён}
+        '400': {description: Некорректный UUID}
+        '401': {description: Требуется авторизация}
+        '403': {description: 'Другой автор, утрачены права или отсутствует CSRF'}
+        '404': {description: Комментарий или объект отсутствует; комментарий другого объекта}
+        '409': {description: Удаление объекта выполняется}
+  /api/object-deletions/{id}:
+    get:
+      operationId: getObjectDeletion
+      tags: [Objects]
+      summary: Состояние операции физического удаления
+      security:
+        - accessCookie: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 'Только активный SUPERADMIN. Cache-Control no-store.'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectDeletion'}
+        '401': {description: Требуется авторизация}
+        '403': {description: Требуется активный администратор}
+        '404': {description: Операция отсутствует}
+  /api/objects/{id}/history:
+    get:
+      operationId: getObjectHistory
+      tags: [Objects]
+      summary: Хронология изменений объекта
+      description: 'Только полный просмотр по правилам карточки (BRL-11). Менеджер чужого объекта и CONTRACT_MANAGER получают 403. Записи идут от старых к новым по sequence; предыдущие записи до миграции упорядочены по времени и id. Значения представлены строками, JSON при структурированных изменениях. Отмена задач через CANCEL/CANCEL_ALL добавляет TASK_STATUS_CHANGED с taskId, name, status и version в previousValue/newValue; автор — инициатор перехода. Добавление комментария записывает COMMENT_CREATED. Системный автор имеет type=SYSTEM, id=null, name=Система. Cache-Control: no-store.'
+      security:
+        - accessCookie: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {in: query, name: cursor, schema: {type: string, maxLength: 128}, description: 'Непрозрачный nextCursor предыдущей страницы того же объекта.'}
+      responses:
+        '200':
+          description: Страница истории
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectHistoryPage'}
+        '400': {description: 'Некорректный UUID или тип параметра limit'}
+        '401': {description: Требуется авторизация}
+        '403': {description: Требуется полный просмотр объекта}
+        '404': {description: Объект отсутствует или физически удалён}
+        '422': {description: 'Некорректный курсор или limit вне диапазона 1-100'}
+  /api/objects/{id}/reassign:
+    post:
+      operationId: reassignObject
+      tags: [Objects]
+      summary: Смена менеджера с переносом его незавершённых задач
+      description: 'Провідний работает в явно назначенных регионах, директор — по всей сети. Новый менеджер должен быть активным и из региона объекта. version берётся из карточки. DONE, CANCELLED и задачи других исполнителей не переносятся. При повторе текущего менеджера с актуальной версией saved=false. Подробности в object-reassignment.md.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectReassignmentRequest'}
+      responses:
+        '200':
+          description: 'Перепривязка выполнена или выбран текущий менеджер; Cache-Control no-store.'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectReassignmentResult'}
+        '400': {description: Некорректный JSON или UUID объекта}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: 'Нет права перепривязки, чужая область или неверный CSRF'}
+        '404': {description: Объект отсутствует или удалён}
+        '409':
+          description: Устаревшая версия; currentVersion содержит актуальную версию
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectEditConflict'}
+        '422':
+          description: 'Некорректное поле, неактивный пользователь, другая роль или регион нового менеджера'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+  /api/objects/{id}:
+    delete:
+      operationId: deleteObject
+      tags: [Objects]
+      summary: Физическое удаление объекта администратором
+      description: 'Возвращает 202 и постоянный ID операции. До завершения MinIO объект скрыт из списка, доступ к его API возвращает 409, изменения запрещены. Обработчик удаляет все версии файлов объекта и задач; затем снимок Audit Log, каскадное удаление записей и завершение операции выполняются одной транзакцией PostgreSQL. Сбой сохраняет PENDING и повторяется с задержкой. Контакты сохраняются. Повтор во время PENDING возвращает ту же операцию; после COMPLETED — 404. Подробности в object-deletion.md.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '202':
+          description: Операция принята или уже выполняется
+          headers:
+            Location: {schema: {type: string}, description: '/api/object-deletions/{operationId}'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectDeletion'}
+        '400': {description: Некорректный UUID}
+        '401': {description: Требуется авторизация}
+        '403': {description: Требуется активный администратор или отсутствует CSRF}
+        '404': {description: Объект отсутствует или уже удалён}
+    patch:
+      operationId: editObject
+      tags: [Objects]
+      summary: Редактирование разрешённых полей с проверкой версии
+      description: 'Ожидает version и хотя бы одно поле. Неуказанные поля сохраняются. Технический и коммерческий блоки заменяются целиком. План открытия только для чтения, рассчитывается из планового акта БМР и срока строительства. Дату ввода в эксплуатацию менеджер не редактирует (403). Тип договора блокируется для всех, кроме Адміністратора, после набора из привязанного к типу договора шаблона; ручные задачи и общие шаблоны не блокируют. Даты подписания и фактического открытия используют таблицу переходов и превью задач; до подтверждения превью весь PATCH не применяется. Если переход блокируют обязательные поля или задачи, допустимая дата сохраняется без смены статуса, ответ содержит unmetConditions. Подробности в object-edit.md.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectPatch'}
+      responses:
+        '200':
+          description: 'Сохранение, отсутствие изменений или превью; inspect saved и confirmationToken. Cache-Control no-store.'
+          content:
+            application/json:
+              schema: {$ref: './object-status.yaml#/components/schemas/StatusResult'}
+        '400': {description: Некорректный JSON или UUID}
+        '401': {description: Требуется сессия}
+        '403': {description: 'Нет права редактирования, вне области роли или CSRF не прошёл'}
+        '404': {description: Объект отсутствует или удалён}
+        '409':
+          description: 'Конфликт версии или устаревшее превью; currentVersion содержит актуальную версию.'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectEditConflict'}
+        '422':
+          description: 'Защищённое, неизвестное или некорректное поле; violations содержит имя поля. При block ответ также содержит tasks.'
+          content:
+            application/json:
+              schema: {$ref: './object-status.yaml#/components/schemas/TransitionError'}
+    get:
+      operationId: getObjectCard
+      tags: [Objects]
+      summary: Карточка объекта в пределах прав текущего пользователя
+      description: 'Три состава ответа: полный, технический для CONTRACT_MANAGER и только название/координаты при отсутствии полного просмотра. Метаданные редактирования и переходов не заменяют проверку на записи. Телефон маскирован. Подробности в object-card.md.'
+      security:
+        - accessCookie: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 'Карточка; закрытые поля отсутствуют. Тип договора доступен SUPERADMIN в полном составе ответа.'
+          headers:
+            Cache-Control: {schema: {type: string, example: no-store}}
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/ObjectListPin'}
+                  - {$ref: '#/components/schemas/ObjectCardTechnical'}
+                  - {$ref: '#/components/schemas/ObjectCardFull'}
+        '400': {description: Некорректный UUID}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Неактивный пользователь или нет доступа к разделу}
+        '404': {description: Объект отсутствует или удалён}
+  /api/objects/{id}/entry-point:
+    post:
+      operationId: changeObjectEntryPoint
+      tags: [Objects]
+      summary: Изменить точку входа или запросить подтверждение
+      description: 'Только longitude и latitude. До ІК изменение прямое; от ІК требуется встречное подтверждение. До решения объект и Google Maps не меняются. Повтор одинакового ожидающего запроса идемпотентен.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Entrance'}
+      responses:
+        '200':
+          description: 'Прямое изменение, отсутствие изменений или запрос; координаты ответа всегда текущие. Cache-Control no-store.'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntryPointResult'}
+        '400': {description: Некорректный JSON или UUID}
+        '401': {description: Требуется сессия}
+        '403': {description: 'Роль, область объекта или CSRF не разрешают действие'}
+        '404': {description: Объект отсутствует}
+        '409': {description: Уже есть другой ожидающий запрос или нет действующего согласующего}
+        '422': {description: Лишнее поле или недопустимые координаты}
+  /api/objects/{id}/entry-point-requests/{requestId}/{action}:
+    post:
+      operationId: decideObjectEntryPointRequest
+      tags: [Objects]
+      summary: Подтвердить, отклонить или отменить запрос точки входа
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: path, name: requestId, required: true, schema: {type: string, format: uuid}}
+        - {in: path, name: action, required: true, schema: {type: string, enum: [approve, reject, cancel]}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, example: {}}
+      responses:
+        '200':
+          description: 'Решение применено атомарно. reject и cancel сохраняют координаты. Cache-Control no-store.'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EntryPointResult'}
+        '400': {description: Некорректный JSON или UUID}
+        '401': {description: Требуется сессия}
+        '403': {description: 'Не назначенный согласующий, самоподтверждение, чужой объект или отмена не инициатором'}
+        '404': {description: Объект или запрос отсутствует}
+        '409':
+          description: Запрос завершён, устарел или изменился маршрут согласования
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectEditConflict'}
+        '422': {description: Тело должно быть пустым JSON-объектом}
+  /api/objects:
+    get:
+      operationId: listObjects
+      tags: [Objects]
+      summary: Список объектов с фильтрами и видимостью по ролям
+      description: 'Все фильтры объединяются. MANAGER видит назначенные регионы: свои объекты полностью, чужие только name/entrance. REGIONAL_MANAGER видит явно назначенные регионы полностью, остальные объекты сети только name/entrance; поиск по адресу доступен только в своих регионах. DEVELOPMENT_DIRECTOR, CEO, SUPERADMIN видят всю сеть полностью. Чужой регион для MANAGER даёт пустую страницу, для REGIONAL_MANAGER — ограниченные строки. Подробности и ограничения курсора описаны в object-list.md.'
+      security:
+        - accessCookie: []
+      parameters:
+        - {in: query, name: status, schema: {type: string, maxLength: 64}, description: 'Код статуса; неизвестный код даёт пустую страницу'}
+        - {in: query, name: managerId, schema: {type: string, format: uuid}}
+        - {in: query, name: regionId, schema: {type: string, format: uuid}}
+        - {in: query, name: objectType, schema: {type: string, maxLength: 64}}
+        - {in: query, name: createdFrom, schema: {type: string, format: date}, description: 'Дата создания от, включительно в UTC'}
+        - {in: query, name: createdTo, schema: {type: string, format: date}, description: 'Дата создания до, включительно в UTC'}
+        - {in: query, name: q, schema: {type: string, minLength: 1, maxLength: 200}, description: 'Подстрока названия или адреса с полным доступом; регистр не учитывается, wildcard-символы считаются буквальными'}
+        - in: query
+          name: sort
+          schema: {type: string, default: createdAt, enum: [createdAt, name, status, investmentCommitteeDate, contractSignedDate]}
+          description: 'Статусы по порядку справочника. Названия по lower(name). contractSignedDate — дата подписания основного договора; дата предварительного договора не участвует. NULL в конце при любом направлении; UUID — второй ключ.'
+        - {in: query, name: direction, schema: {type: string, default: desc, enum: [asc, desc]}}
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {in: query, name: cursor, schema: {type: string, maxLength: 4096}, description: 'Непрозрачный курсор следующей страницы, срок 15 минут. Те же пользователь, фильтры, порядок и размер страницы.'}
+      responses:
+        '200':
+          description: 'Страница; content может быть пустым. Телефон полного объекта маскирован.'
+          headers:
+            Cache-Control: {schema: {type: string, example: no-store}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectListPage'}
+        '401': {description: Требуется действующая сессия}
+        '403': {description: Пользователь отсутствует или неактивен}
+        '422':
+          description: 'Неверный, неизвестный или повторный параметр; недопустимый диапазон; чужой, изменённый или истёкший курсор'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+    post:
+      operationId: createObject
+      tags: [Objects]
+      summary: Создать объект в статусе Знайдено
+      description: 'MANAGER создаёт только на себя в одном из назначенных регионов. REGIONAL_MANAGER выбирает менеджера своего региона. DEVELOPMENT_DIRECTOR выбирает менеджера выбранного региона по всей сети. Если regionId не передан, требуется однозначное совпадение с загруженными границами; иначе 422 и ручной выбор. dataSourceId необязателен.'
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: 'Один ключ на отправку формы. Повтор с другим телом возвращает 409.'
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateObject'
+      responses:
+        '201':
+          description: Объект создан либо возвращён по ранее использованному ключу
+          headers:
+            Location:
+              schema: {type: string}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedObject'
+        '400':
+          description: Некорректный синтаксис JSON
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+        '401':
+          description: Сессия отсутствует, истекла или отозвана
+        '403':
+          description: Нет прав, другой регион или назначение, неверный CSRF
+        '409':
+          description: Найдены дубли (DUPLICATES_FOUND) либо ключ уже завершён с другим телом или отменой
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - {$ref: '#/components/schemas/ApiError'}
+                  - {$ref: '#/components/schemas/DuplicateWarning'}
+        '422':
+          description: 'Неизвестное поле, неверный тип, недостаточно данных, недопустимая точка или справочник'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+        '503':
+          description: 'Геокодирование недоступно; можно заполнить адрес и регион вручную'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+  /api/objects/duplicate-cancellations:
+    post:
+      operationId: cancelObjectCreation
+      tags: [Objects]
+      summary: Записать решение отменить создание
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateObject'}
+      responses:
+        '204':
+          description: 'Отмена записана или возвращена по тому же ключу. confirmDuplicates должен быть false либо отсутствовать.'
+        '401':
+          description: Требуется действующая сессия
+        '403':
+          description: Нет прав или неверный CSRF
+        '409':
+          description: Ключ ранее использован для создания или с другим телом
+        '422':
+          description: Недопустимые данные, ключ или confirmDuplicates=true
+        '503':
+          description: Геокодирование недоступно
+components:
+  securitySchemes:
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: workflow_access_token
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+  schemas:
+    ObjectImportState:
+      type: object
+      required: [id, author, state, total, created, rejected, duplicates, requestedAt]
+      properties:
+        id: {type: string, format: uuid}
+        author: {type: string, format: uuid}
+        state: {type: string, enum: [QUEUED, COMPLETED, FAILED]}
+        total: {type: integer, minimum: 0}
+        created: {type: integer, minimum: 0}
+        rejected: {type: integer, minimum: 0}
+        duplicates: {type: integer, minimum: 0}
+        requestedAt: {type: string, format: date-time}
+        completedAt: {type: string, format: date-time, nullable: true}
+        error: {type: string, nullable: true, enum: [IMPORT_FAILED, PERMISSIONS_CHANGED]}
+    ObjectImportReport:
+      type: object
+      required: [content, offset, limit, total]
+      properties:
+        offset: {type: integer, minimum: 0}
+        limit: {type: integer, minimum: 1, maximum: 200}
+        total: {type: integer, minimum: 0}
+        content:
+          type: array
+          items: {$ref: '#/components/schemas/ObjectImportRow'}
+    ObjectImportRow:
+      type: object
+      required: [row, state, possibleDuplicate, errors]
+      properties:
+        row: {type: integer, minimum: 2}
+        state: {type: string, enum: [PENDING, CREATED, REJECTED, NOT_APPLIED]}
+        objectId: {type: string, format: uuid, nullable: true}
+        possibleDuplicate: {type: boolean}
+        note: {type: string, nullable: true, example: можливий дубль}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string}
+              message: {type: string}
+    ObjectExportRequest:
+      type: object
+      additionalProperties: false
+      required: [format]
+      properties:
+        format: {type: string, description: 'CSV или XLSX, без учёта регистра', example: XLSX}
+        status: {type: string, maxLength: 64}
+        managerId: {type: string, format: uuid}
+        regionId: {type: string, format: uuid}
+        objectType: {type: string, maxLength: 64}
+        q: {type: string, minLength: 1, maxLength: 200}
+        createdFrom: {type: string, format: date}
+        createdTo: {type: string, format: date}
+        sort: {type: string, enum: [createdAt, name, status, investmentCommitteeDate, contractSignedDate]}
+        direction: {type: string, description: 'asc или desc, без учёта регистра', example: asc}
+    ObjectExportState:
+      type: object
+      required: [id, state, format, requestedAt, expiresAt, rows, error]
+      properties:
+        id: {type: string, format: uuid}
+        state: {type: string, enum: [QUEUED, READY, FAILED, EXPIRED]}
+        format: {type: string, enum: [CSV, XLSX]}
+        requestedAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+        rows: {type: integer, format: int64, minimum: 0}
+        error: {type: string, nullable: true, enum: [PERMISSIONS_CHANGED, STORAGE_UNAVAILABLE, EXPORT_LIMIT, EXPORT_FAILED, null]}
+    ObjectMapResult:
+      type: object
+      additionalProperties: false
+      required: [content, limit, truncated]
+      properties:
+        content:
+          type: array
+          maxItems: 2000
+          items: {$ref: '#/components/schemas/ObjectMapPin'}
+        limit: {type: integer, enum: [2000]}
+        truncated: {type: boolean, description: 'Есть ещё видимые объекты, соответствующие bbox и фильтрам; сузьте область'}
+    ObjectMapPin:
+      type: object
+      additionalProperties: false
+      required: [id, name, entrance]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        status: {type: string, description: 'Код справочника; поле отсутствует при ограниченном просмотре'}
+    ObjectFile:
+      type: object
+      additionalProperties: false
+      required: [id, category, author, name, contentType, sizeBytes, createdAt, canDelete]
+      properties:
+        id: {type: string, format: uuid}
+        category:
+          type: object
+          nullable: true
+          required: [id, code, name]
+          properties:
+            id: {type: string, format: uuid}
+            code: {type: string}
+            name: {type: string}
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+        name: {type: string, maxLength: 255}
+        contentType: {type: string}
+        sizeBytes: {type: integer, format: int64, minimum: 0, maximum: 20971520}
+        createdAt: {type: string, format: date-time}
+        canDelete: {type: boolean}
+    ObjectFilePage:
+      type: object
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/ObjectFile'}
+        nextCursor: {type: string, nullable: true, maxLength: 192}
+        hasMore: {type: boolean}
+    ObjectCommentCreate:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: {type: string, minLength: 1, maxLength: 1000, description: 'Обычный текст, минимум один видимый символ; лимит в Unicode code points'}
+        mentions: {type: array, maxItems: 500, items: {$ref: '#/components/schemas/ObjectCommentMention'}}
+    ObjectCommentEdit:
+      type: object
+      additionalProperties: false
+      required: [text, version]
+      properties:
+        text: {type: string, minLength: 1, maxLength: 1000}
+        mentions: {type: array, maxItems: 500, items: {$ref: '#/components/schemas/ObjectCommentMention'}}
+        version: {type: integer, format: int64, minimum: 0, description: Текущая версия комментария}
+    ObjectComment:
+      type: object
+      additionalProperties: false
+      required: [id, author, text, createdAt, editedAt, edited, editLabel, version, mentions]
+      properties:
+        id: {type: string, format: uuid}
+        author:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+        text: {type: string, maxLength: 1000}
+        mentions: {type: array, maxItems: 500, items: {$ref: '#/components/schemas/ObjectCommentMention'}}
+        createdAt: {type: string, format: date-time}
+        editedAt: {type: string, format: date-time, nullable: true}
+        edited: {type: boolean}
+        editLabel: {type: string, nullable: true, enum: [відредаговано, null]}
+        version: {type: integer, format: int64, minimum: 0}
+    ObjectCommentMention:
+      type: object
+      additionalProperties: false
+      required: [userId, offset, length]
+      properties:
+        userId: {type: string, format: uuid}
+        offset: {type: integer, minimum: 0, description: 'Начало @Имя в UTF-16 code units'}
+        length: {type: integer, minimum: 2, description: 'Длина @Имя в UTF-16 code units'}
+    ObjectCommentPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/ObjectComment'}
+        nextCursor: {type: string, nullable: true, maxLength: 192}
+        hasMore: {type: boolean}
+    ObjectDeletion:
+      type: object
+      additionalProperties: false
+      required: [id, objectId, actorId, state, attempts, lastError, createdAt, completedAt]
+      properties:
+        id: {type: string, format: uuid}
+        objectId: {type: string, format: uuid}
+        actorId: {type: string, format: uuid}
+        state: {type: string, enum: [PENDING, COMPLETED]}
+        attempts: {type: integer, minimum: 0}
+        lastError: {type: string, nullable: true, enum: [STORAGE_UNAVAILABLE, DATABASE_FAILURE, null]}
+        createdAt: {type: string, format: date-time}
+        completedAt: {type: string, format: date-time, nullable: true}
+    ObjectHistoryPage:
+      type: object
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/ObjectHistoryEntry'}
+        nextCursor: {type: string, nullable: true}
+        hasMore: {type: boolean}
+    ObjectHistoryEntry:
+      type: object
+      required: [id, sequence, occurredAt, author, field, previousValue, newValue, objectVersion]
+      properties:
+        id: {type: string, format: uuid}
+        sequence: {type: integer, format: int64, minimum: 1}
+        occurredAt: {type: string, format: date-time}
+        author:
+          type: object
+          required: [id, type, name]
+          properties:
+            id: {type: string, format: uuid, nullable: true}
+            type: {type: string, enum: [USER, SYSTEM]}
+            name: {type: string}
+        field: {type: string}
+        previousValue: {type: string, nullable: true}
+        newValue: {type: string, nullable: true}
+        objectVersion: {type: integer, format: int64, minimum: 0}
+    ObjectReassignmentRequest:
+      type: object
+      additionalProperties: false
+      required: [managerId, version]
+      properties:
+        managerId: {type: string, format: uuid}
+        version: {type: integer, format: int64, minimum: 0}
+    ObjectReassignmentResult:
+      type: object
+      additionalProperties: false
+      required: [saved, id, previousManagerId, managerId, version, transferredTasks]
+      properties:
+        saved: {type: boolean}
+        id: {type: string, format: uuid}
+        previousManagerId: {type: string, format: uuid}
+        managerId: {type: string, format: uuid}
+        version: {type: integer, format: int64, minimum: 0}
+        transferredTasks:
+          type: array
+          items: {$ref: '#/components/schemas/ReassignedTask'}
+    ReassignedTask:
+      type: object
+      additionalProperties: false
+      required: [taskId, previousAssigneeId, assigneeId, status, version, transferredFromPredecessor, label]
+      properties:
+        taskId: {type: string, format: uuid}
+        previousAssigneeId: {type: string, format: uuid}
+        assigneeId: {type: string, format: uuid}
+        status: {type: string, enum: [NEW, IN_PROGRESS, PAUSED, WAITING_APPROVAL]}
+        version: {type: integer, format: int64, minimum: 1}
+        transferredFromPredecessor: {type: boolean, enum: [true]}
+        label: {type: string, enum: ['задача перейшла від попередника']}
+    ObjectPatch:
+      type: object
+      additionalProperties: false
+      required: [version]
+      minProperties: 2
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        name: {type: string, minLength: 1, maxLength: 500}
+        address: {type: string, nullable: true, maxLength: 500}
+        objectType: {type: string, nullable: true, maxLength: 64}
+        objectArea: {$ref: '#/components/schemas/Area'}
+        landArea: {$ref: '#/components/schemas/Area'}
+        contactId: {type: string, format: uuid}
+        dataSourceId: {type: string, format: uuid, nullable: true}
+        shortComment: {type: string, nullable: true, maxLength: 200}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        commercialTerms: {$ref: '#/components/schemas/CommercialTerms'}
+        technicalDescription: {type: string, nullable: true, maxLength: 5000}
+        commercialDescription: {type: string, nullable: true, maxLength: 5000}
+        contractTypeId: {type: string, format: uuid}
+        contractSignedDate: {type: string, format: date, nullable: true}
+        preliminaryContractSignedDate: {type: string, format: date, nullable: true}
+        commissioningDate: {type: string, format: date, nullable: true}
+        constructionAcceptancePlannedDate: {type: string, format: date, nullable: true}
+        constructionAcceptanceActualDate: {type: string, format: date, nullable: true}
+        openingPlannedDate: {type: string, format: date, nullable: true, readOnly: true, description: Calculated from planned construction acceptance plus the construction term in calendar days}
+        openingActualDate: {type: string, format: date, nullable: true}
+        paymentActPlannedDate: {type: string, format: date, nullable: true}
+        paymentActActualDate: {type: string, format: date, nullable: true}
+        confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$'}
+    EntryPointResult:
+      type: object
+      additionalProperties: false
+      required: [saved, id, version, entrance, googleMapsUrl]
+      properties:
+        saved: {type: boolean}
+        id: {type: string, format: uuid}
+        version: {type: integer, format: int64, minimum: 0}
+        approvalRequestId: {type: string, format: uuid, nullable: true}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        googleMapsUrl: {type: string, format: uri}
+    ObjectEditConflict:
+      allOf:
+        - {$ref: '#/components/schemas/ApiError'}
+        - type: object
+          required: [currentVersion]
+          properties:
+            currentVersion: {type: integer, format: int64, minimum: 0}
+    ObjectCardFull:
+      type: object
+      additionalProperties: false
+      required: [id, name, regionId, managerId, status, statusName, entrance, authorId, createdAt, version, shortComment, googleMapsUrl, workflow, availableTransitions, pendingRequests, editableFields]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, nullable: true}
+        objectType: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        regionId: {type: string, format: uuid}
+        managerId: {type: string, format: uuid}
+        status: {type: string}
+        statusName: {type: string}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        objectArea: {$ref: '#/components/schemas/Area'}
+        landArea: {$ref: '#/components/schemas/Area'}
+        contact: {$ref: '#/components/schemas/Contact'}
+        contactId: {type: string, format: uuid, nullable: true}
+        dataSourceId: {type: string, format: uuid, nullable: true}
+        shortComment: {type: string, nullable: true, maxLength: 200}
+        authorId: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+        googleMapsUrl: {type: string, format: uri}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        commercialTerms: {$ref: '#/components/schemas/CommercialTerms'}
+        workflow:
+          allOf:
+            - {$ref: '#/components/schemas/ObjectListWorkflow'}
+          description: 'Тип договора доступен всем ролям с полным просмотром карточки, включая SUPERADMIN. Пустые contractType и contractTypeId отсутствуют.'
+        technicalDescription: {type: string, nullable: true}
+        commercialDescription: {type: string, nullable: true}
+        availableTransitions: {type: array, items: {$ref: '#/components/schemas/ObjectCardTransition'}}
+        pendingRequests: {type: array, items: {$ref: '#/components/schemas/ObjectCardRequest'}}
+        editableFields: {$ref: '#/components/schemas/ObjectEditableFields'}
+    ObjectCardTechnical:
+      type: object
+      additionalProperties: false
+      required: [name, entrance, technicalSpecifications, technicalDescription, contractType, contractTypeId, contractSignedDate, preliminaryContractSignedDate, commissioningDate, constructionAcceptancePlannedDate, constructionAcceptanceActualDate, openingPlannedDate, version, googleMapsUrl, availableTransitions, pendingRequests, editableFields]
+      properties:
+        name: {type: string, nullable: true}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        technicalDescription: {type: string, nullable: true}
+        contractType: {type: string, nullable: true}
+        contractTypeId: {type: string, format: uuid, nullable: true}
+        contractSignedDate: {type: string, format: date, nullable: true}
+        preliminaryContractSignedDate: {type: string, format: date, nullable: true}
+        commissioningDate: {type: string, format: date, nullable: true}
+        constructionAcceptancePlannedDate: {type: string, format: date, nullable: true, description: 'Плановая дата акта приймання на БМР.'}
+        constructionAcceptanceActualDate: {type: string, format: date, nullable: true, description: 'Фактическая дата акта приймання на БМР.'}
+        openingPlannedDate: {type: string, format: date, nullable: true, description: Плановая дата открытия из даты акта БМР и срока строительства.}
+        version: {type: integer, format: int64}
+        googleMapsUrl: {type: string, format: uri}
+        availableTransitions: {type: array, items: {$ref: '#/components/schemas/ObjectCardTransition'}}
+        pendingRequests: {type: array, items: {$ref: '#/components/schemas/ObjectCardRequest'}}
+        editableFields: {$ref: '#/components/schemas/ObjectEditableFields'}
+    ObjectCardTransition:
+      type: object
+      additionalProperties: false
+      required: [id, code, status, statusName, confirmationRequired, confirmingRoleId, requiredFields, unfinishedTaskAction, requiredCompletedTaskCodes, unmetConditions]
+      properties:
+        requiredCompletedTaskCodes: {type: array, items: {type: string}}
+        unmetConditions: {$ref: '#/components/schemas/ObjectTransitionConditions'}
+        id: {type: string, format: uuid}
+        code: {type: string}
+        status: {type: string}
+        statusName: {type: string}
+        confirmationRequired: {type: boolean}
+        confirmingRoleId: {type: string, format: uuid, nullable: true}
+        requiredFields: {type: array, items: {type: string}}
+        unfinishedTaskAction: {type: string, enum: [BLOCK, CANCEL, CANCEL_ALL, NONE]}
+    ObjectTransitionConditions:
+      type: object
+      additionalProperties: false
+      required: [missingFields, incompleteTasks, missingTaskCodes]
+      properties:
+        missingFields:
+          type: array
+          description: 'Незаполненные обязательные поля по текущим данным объекта; refusalReasonId требуется передать заново при отказе.'
+          items: {type: string}
+        incompleteTasks:
+          type: array
+          description: 'Обязательные задачи текущего набора со статусом, отличным от DONE.'
+          items: {$ref: '#/components/schemas/ObjectTransitionTask'}
+        missingTaskCodes:
+          type: array
+          description: 'Коды обязательных элементов, для которых в текущем наборе нет задачи.'
+          items: {type: string}
+    ObjectTransitionTask:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, status]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        status: {type: string, enum: [NEW, IN_PROGRESS, PAUSED, WAITING_APPROVAL, DONE, CANCELLED]}
+    ObjectCardRequest:
+      type: object
+      additionalProperties: false
+      required: [id, type, requested, initiatorId, confirmingRoleId, confirmingUserId, requestedAt]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [STATUS, ENTRY_POINT]}
+        requested:
+          type: object
+          additionalProperties: false
+          required: [status, entrance]
+          properties:
+            status: {type: string, nullable: true}
+            entrance:
+              type: object
+              nullable: true
+              additionalProperties: false
+              required: [longitude, latitude]
+              properties:
+                longitude: {type: number, minimum: -180, maximum: 180}
+                latitude: {type: number, minimum: -90, maximum: 90}
+        initiatorId: {type: string, format: uuid}
+        confirmingRoleId: {type: string, format: uuid, nullable: true}
+        confirmingUserId: {type: string, format: uuid, nullable: true}
+        requestedAt: {type: string, format: date-time}
+    ObjectEditableFields:
+      type: object
+      additionalProperties: {type: boolean}
+      description: 'Разрешение обычного редактирования по T5775; отсутствующее поле считается закрытым. Координаты и статус изменяются отдельными действиями. Для CEO все значения false.'
+    ObjectListPage:
+      type: object
+      additionalProperties: false
+      required: [content, nextCursor, hasMore]
+      properties:
+        content:
+          type: array
+          maxItems: 100
+          items:
+            oneOf:
+              - {$ref: '#/components/schemas/ObjectListPin'}
+              - {$ref: '#/components/schemas/ObjectListTechnical'}
+              - {$ref: '#/components/schemas/ObjectListFull'}
+        nextCursor: {type: string, nullable: true, maxLength: 4096}
+        hasMore: {type: boolean}
+    ObjectListPin:
+      type: object
+      additionalProperties: false
+      required: [name, entrance]
+      properties:
+        name: {type: string, nullable: true}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+    ObjectListTechnical:
+      type: object
+      additionalProperties: false
+      required: [name, entrance, technicalSpecifications, technicalDescription]
+      properties:
+        name: {type: string, nullable: true}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        technicalDescription: {type: string, nullable: true}
+    ObjectListFull:
+      type: object
+      additionalProperties: false
+      required: [id, name, regionId, managerId, status, statusName, entrance, authorId, createdAt, version, googleMapsUrl, workflow, technicalDescription, commercialDescription, shortComment]
+      properties:
+        shortComment:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: 'Короткий комментарий. Только для полного просмотра; при отсутствии значения возвращается null. У ограниченных пинов и договорной роли поле отсутствует.'
+        dataSourceId: {type: string, format: uuid, nullable: true}
+        id: {type: string, format: uuid}
+        name: {type: string, nullable: true, description: 'Старые записи могут не иметь названия'}
+        objectType: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        regionId: {type: string, format: uuid}
+        managerId: {type: string, format: uuid}
+        status: {type: string}
+        statusName: {type: string}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        objectArea: {$ref: '#/components/schemas/Area'}
+        landArea: {$ref: '#/components/schemas/Area'}
+        contact: {$ref: '#/components/schemas/Contact'}
+        contactId: {type: string, format: uuid, nullable: true}
+        authorId: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+        googleMapsUrl: {type: string, format: uri}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        commercialTerms: {$ref: '#/components/schemas/CommercialTerms'}
+        workflow: {$ref: '#/components/schemas/ObjectListWorkflow'}
+        technicalDescription: {type: string, nullable: true}
+        commercialDescription: {type: string, nullable: true}
+    ObjectListWorkflow:
+      type: object
+      additionalProperties: false
+      properties:
+        statusBeforePause: {type: string, nullable: true}
+        statusBeforeRefusal: {type: string, nullable: true}
+        investmentCommitteeDecision: {type: string, nullable: true, enum: [APPROVED, APPROVED_WITH_CONDITIONS, REFUSED]}
+        investmentCommitteeDate: {type: string, format: date, nullable: true}
+        investmentCommitteeConditions: {type: string, nullable: true}
+        investmentCommitteeRefusalComment: {type: string, nullable: true}
+        refusalTag:
+          type: object
+          nullable: true
+          required: [id, code, name]
+          properties:
+            id: {type: string, format: uuid}
+            code: {type: string}
+            name: {type: string}
+        contractType: {type: string, nullable: true}
+        contractTypeId: {type: string, format: uuid, nullable: true}
+        milestones:
+          type: object
+          nullable: true
+          properties:
+            contractSignedDate: {type: string, format: date, nullable: true}
+            preliminaryContractSignedDate: {type: string, format: date, nullable: true}
+            commissioningDate: {type: string, format: date, nullable: true}
+            constructionAcceptancePlannedDate: {type: string, format: date, nullable: true}
+            constructionAcceptanceActualDate: {type: string, format: date, nullable: true}
+            openingPlannedDate: {type: string, format: date, nullable: true, readOnly: true, description: Calculated from planned construction acceptance plus the construction term in calendar days}
+            openingActualDate: {type: string, format: date, nullable: true}
+            paymentActPlannedDate: {type: string, format: date, nullable: true}
+            paymentActActualDate: {type: string, format: date, nullable: true}
+        updatedAt: {type: string, format: date-time}
+    CreateObject:
+      type: object
+      additionalProperties: false
+      required: [entrance]
+      description: 'Название необязательно в запросе и заполняется из адреса. Технический и коммерческий блоки необязательны. Контакт пока необязателен: передайте contactId доступного контакта или contact для создания нового, не оба сразу.'
+      allOf:
+        - not:
+            required: [contactId, contact]
+            properties:
+              contactId: {type: string, nullable: false}
+              contact: {type: object, nullable: false}
+      anyOf:
+        - required: [objectArea]
+          properties:
+            objectArea: {type: number, nullable: false, minimum: 0, exclusiveMinimum: true}
+        - required: [landArea]
+          properties:
+            landArea: {type: number, nullable: false, minimum: 0, exclusiveMinimum: true}
+      properties:
+        shortComment: {type: string, nullable: true, maxLength: 200}
+        confirmDuplicates:
+          type: boolean
+          nullable: true
+          default: false
+          description: 'Явное создание несмотря на дубли. На повторе сохраните тело и Idempotency-Key; флаг исключён из fingerprint.'
+        name: {type: string, nullable: true, maxLength: 500, description: 'Непустое ручное название сохраняется, иначе используется итоговый адрес. Явно пустые название и адрес дают 422.'}
+        objectType:
+          type: string
+          nullable: true
+          enum: [LAND_PLOT, BUILT_IN_PREMISES, SHOPPING_CENTER, HANGAR]
+        address:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 'Если не задан, определяется по координатам. Явно пустой адрес с пустым названием даёт 422.'
+        regionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'Если не задан, определяется по загруженным Polygon/MultiPolygon региона. При отсутствии совпадения или неоднозначности нужен ручной выбор. Ручное значение имеет приоритет.'
+        managerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'MANAGER может указать только себя или не передавать поле. REGIONAL_MANAGER и DEVELOPMENT_DIRECTOR должны выбрать активного MANAGER, назначенного в регион объекта.'
+        dataSourceId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'UUID активного значения object_data_sources. Необязательное поле «Джерело»; неизвестное или неактивное значение даёт 422.'
+        entrance:
+          $ref: '#/components/schemas/Entrance'
+        objectArea:
+          $ref: '#/components/schemas/Area'
+        landArea:
+          $ref: '#/components/schemas/Area'
+        contact:
+          $ref: '#/components/schemas/Contact'
+        contactId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'Существующий контакт в пределах полной видимости пользователя. Не передаётся одновременно с новым contact.'
+        technicalSpecifications:
+          $ref: '#/components/schemas/TechnicalSpecifications'
+        commercialTerms:
+          $ref: '#/components/schemas/CommercialTerms'
+    TechnicalSpecifications:
+      type: object
+      nullable: true
+      additionalProperties: false
+      properties:
+        buildingArea: {$ref: '#/components/schemas/TechnicalNumber'}
+        firstFloorArea: {$ref: '#/components/schemas/TechnicalNumber'}
+        secondFloorArea: {$ref: '#/components/schemas/TechnicalNumber'}
+        basementArea: {$ref: '#/components/schemas/TechnicalNumber'}
+        salesHallArea: {$ref: '#/components/schemas/TechnicalNumber'}
+        floorSlabHeight: {$ref: '#/components/schemas/TechnicalNumber'}
+        connectedPower: {$ref: '#/components/schemas/TechnicalNumber'}
+        waterSupplyFlow: {$ref: '#/components/schemas/TechnicalNumber'}
+        powerConnectionCategory: {type: string, nullable: true, enum: [I, II, III]}
+        sewageType: {type: string, nullable: true, enum: [CENTRALIZED, LOCAL_TREATMENT, CESSPOOL]}
+    TechnicalNumber:
+      type: number
+      nullable: true
+      minimum: 0
+      maximum: 999999999999.99
+      multipleOf: 0.01
+    CommercialTerms:
+      type: object
+      nullable: true
+      additionalProperties: false
+      properties:
+        leaseTerms: {type: string, nullable: true, maxLength: 5000}
+        fixedRentAmount:
+          allOf:
+            - {$ref: '#/components/schemas/TechnicalNumber'}
+          description: 'Гривны без НДС; десятичное число, до двух знаков после запятой.'
+        rentIndexationPercent: {type: number, nullable: true, minimum: 0, maximum: 99999.99, multipleOf: 0.01}
+        turnoverPaymentPercent: {type: number, nullable: true, minimum: 0, maximum: 100, multipleOf: 0.01}
+        counterpartyTaxStatus:
+          type: string
+          nullable: true
+          enum: [SOLE_PROPRIETOR_GROUP_3_NON_VAT, SOLE_PROPRIETOR_GROUP_3_VAT, COMPANY_NON_VAT, COMPANY_VAT, INDIVIDUAL]
+        constructionTermDays: {type: integer, format: int32, nullable: true, minimum: 0, maximum: 2147483647}
+        contractDurationYears: {type: number, nullable: true, minimum: 0, maximum: 999.99, multipleOf: 0.01}
+    Area:
+      type: number
+      nullable: true
+      minimum: 0
+      exclusiveMinimum: true
+      maximum: 999999999999.99
+      multipleOf: 0.01
+    Entrance:
+      type: object
+      additionalProperties: false
+      required: [longitude, latitude]
+      properties:
+        longitude: {type: number, minimum: -180, maximum: 180, multipleOf: 0.0000001}
+        latitude: {type: number, minimum: -90, maximum: 90, multipleOf: 0.0000001}
+      description: 'WGS84. Точка дополнительно проверяется по границе Украины.'
+    Contact:
+      type: object
+      nullable: true
+      additionalProperties: false
+      required: [name, role]
+      anyOf:
+        - required: [phone]
+          properties:
+            phone: {type: string, nullable: false, minLength: 1}
+        - required: [email]
+          properties:
+            email: {type: string, nullable: false, minLength: 1}
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        role: {type: string, minLength: 1, maxLength: 100}
+        phone:
+          type: string
+          nullable: true
+          description: 'E.164. Пробелы, скобки и дефисы удаляются перед проверкой.'
+          maxLength: 64
+        email: {type: string, format: email, maxLength: 254, nullable: true}
+    CreatedObject:
+      type: object
+      required: [id, name, regionId, managerId, status, statusName, entrance, authorId, createdAt, version, googleMapsUrl]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 500}
+        objectType: {type: string, nullable: true}
+        dataSourceId: {type: string, format: uuid, nullable: true}
+        shortComment: {type: string, nullable: true, maxLength: 200}
+        address: {type: string, nullable: true}
+        regionId: {type: string, format: uuid}
+        managerId: {type: string, format: uuid}
+        status: {type: string, example: FOUND}
+        statusName: {type: string, example: Знайдено}
+        entrance: {$ref: '#/components/schemas/Entrance'}
+        objectArea: {$ref: '#/components/schemas/Area'}
+        landArea: {$ref: '#/components/schemas/Area'}
+        contact: {$ref: '#/components/schemas/Contact'}
+        contactId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'ID нового или выбранного контакта. Для ссылки контактные данные не возвращаются; contact=null. При повторе ID остаётся прежним.'
+        authorId: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+        googleMapsUrl: {type: string, format: uri, readOnly: true, maxLength: 2048, example: 'https://www.google.com/maps/search/?api=1&query=50.4501%2C30.5234'}
+        technicalSpecifications: {$ref: '#/components/schemas/TechnicalSpecifications'}
+        commercialTerms: {$ref: '#/components/schemas/CommercialTerms'}
+    ApiError:
+      type: object
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        code: {type: string}
+        message: {type: string}
+        path: {type: string}
+        correlationId: {type: string}
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              message: {type: string}
+    DuplicateWarning:
+      allOf:
+        - {$ref: '#/components/schemas/ApiError'}
+        - type: object
+          required: [duplicates]
+          properties:
+            code: {type: string, enum: [DUPLICATES_FOUND]}
+            duplicates:
+              type: object
+              required: [total, items]
+              properties:
+                total: {type: integer, format: int64, minimum: 1}
+                items:
+                  type: array
+                  maxItems: 20
+                  items:
+                    oneOf:
+                      - {$ref: '#/components/schemas/AccessibleDuplicate'}
+                      - {$ref: '#/components/schemas/RestrictedDuplicate'}
+    AccessibleDuplicate:
+      type: object
+      additionalProperties: false
+      required: [id, name, address, status, statusName, refused, distanceMetres, restricted]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        status: {type: string}
+        statusName: {type: string}
+        refused: {type: boolean}
+        distanceMetres: {type: number, format: double, minimum: 0}
+        restricted: {type: boolean, enum: [false]}
+    RestrictedDuplicate:
+      type: object
+      additionalProperties: false
+      required: [name, distanceMetres, restricted]
+      properties:
+        name: {type: string, nullable: true}
+        distanceMetres: {type: number, format: double, minimum: 0}
+        restricted: {type: boolean, enum: [true]}

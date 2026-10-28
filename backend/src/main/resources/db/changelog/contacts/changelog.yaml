@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - include:
+      file: 20261016_contact_model.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261016_contact_crud.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261019_contact_audit_values.yaml
+      relativeToChangelogFile: true

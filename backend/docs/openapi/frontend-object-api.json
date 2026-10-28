@@ -1,0 +1,1130 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Workflow object frontend lookup APIs",
+    "version": "1.0.0",
+    "description": "Companion to objects.yaml, contacts.yaml and users.openapi.yaml. Cookie authentication and current role/region enforcement; no grants to object writes."
+  },
+  "security": [
+    {
+      "accessCookie": []
+    }
+  ],
+  "paths": {
+    "/api/file-categories": {
+      "get": {
+        "operationId": "activeFileCategories",
+        "summary": "Active permitted file categories",
+        "description": "Restricted categories are omitted for SUPERADMIN. Object file permissions are checked separately.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/regions": {
+      "get": {
+        "operationId": "accessibleRegions",
+        "summary": "Configured regions in actor scope",
+        "description": "MANAGER and REGIONAL_MANAGER: assigned regions. Other active roles: network. Regions have no activity flag.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/data-sources": {
+      "get": {
+        "operationId": "activeObjectDataSources",
+        "summary": "Active object sources",
+        "description": "Active authenticated user required",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/contract-types": {
+      "get": {
+        "operationId": "activeContractTypes",
+        "summary": "Active contract types",
+        "description": "Active authenticated user required",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/managers": {
+      "get": {
+        "operationId": "objectManagerCandidates",
+        "summary": "Active manager picker",
+        "description": "REGIONAL_MANAGER: assigned regions; DEVELOPMENT_DIRECTOR and SUPERADMIN: network. No administrative user fields.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/contacts": {
+      "get": {
+        "operationId": "searchAccessibleContacts",
+        "summary": "Search visible contacts with masked phones",
+        "description": "Uses existing contact visibility, including own unlinked contacts for writers. CONTRACT_MANAGER only sees contacts linked to CONTRACT_APPROVAL/CONTRACT_SIGNED objects. Query matches literal name or phone digits (at least three).",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/objects/{id}/contacts": {
+      "get": {
+        "operationId": "objectContacts",
+        "summary": "Linked visible contacts",
+        "description": "Same policy as contact detail. Unknown object 404, unavailable object 403, pending deletion 409.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object not found"
+          },
+          "409": {
+            "description": "Object deletion pending"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/objects/{id}/mentionable-users": {
+      "get": {
+        "operationId": "objectMentionCandidates",
+        "summary": "Active users eligible for mentions",
+        "description": "Caller must be able to comment. Each recipient passes the existing object-read policy used during mention validation.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object not found"
+          },
+          "409": {
+            "description": "Object deletion pending"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/objects/{id}/tasks": {
+      "get": {
+        "operationId": "savedObjectTasks",
+        "summary": "Saved tasks, dependencies and current-page set metadata",
+        "description": "Full object readers and CONTRACT_MANAGER. Includes manual/completed tasks; no generation or write rights. Foreign set filter returns an empty page.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "taskSetId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object not found"
+          },
+          "409": {
+            "description": "Object deletion pending"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          }
+        }
+      }
+    },
+    "/api/geo/search": {
+      "get": {
+        "operationId": "searchObjectAddress",
+        "summary": "Ukrainian address suggestions",
+        "description": "Requires an approved Nominatim-compatible provider. Seven-day cache, one shared external request per second. Mock mode returns an empty list. Coordinates rounded to at most seven decimal places.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6,
+              "default": 6
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GeoSuggestion"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed parameter"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "Invalid search or pagination"
+          },
+          "429": {
+            "description": "Shared geocoder request limit; retry after one second"
+          },
+          "503": {
+            "description": "Geocoding provider unconfigured or unavailable"
+          }
+        }
+      }
+    },
+    "/api/geo/reverse": {
+      "post": {
+        "operationId": "reverseObjectAddress",
+        "summary": "Resolve address and CRM region before object creation",
+        "description": "Point must be in Ukraine, at most seven decimal places. No object is created. Region uses loaded CRM geometry and actor scope; missing or ambiguous mapping requires manual region selection.",
+        "security": [
+          {
+            "accessCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Coordinates"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoAddress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON"
+          },
+          "401": {
+            "description": "No valid session"
+          },
+          "403": {
+            "description": "Access denied or invalid CSRF"
+          },
+          "422": {
+            "description": "Invalid coordinates, foreign point or unknown field"
+          },
+          "503": {
+            "description": "Geocoder unavailable or reverse rate gate busy"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "workflow_access_token"
+      },
+      "csrfHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-XSRF-TOKEN"
+      }
+    },
+    "schemas": {
+      "Option": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "Category": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Option"
+          },
+          {
+            "type": "object",
+            "required": [
+              "isRestricted"
+            ],
+            "properties": {
+              "isRestricted": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "GeoSuggestion": {
+        "type": "object",
+        "required": [
+          "label",
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          }
+        }
+      },
+      "Coordinates": {
+        "type": "object",
+        "required": [
+          "longitude",
+          "latitude"
+        ],
+        "properties": {
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeoAddress": {
+        "type": "object",
+        "required": [
+          "address",
+          "regionId",
+          "requiresRegionSelection",
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "regionId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "requiresRegionSelection": {
+            "type": "boolean"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          }
+        }
+      },
+      "Manager": {
+        "type": "object",
+        "required": [
+          "id",
+          "fullName",
+          "role",
+          "regionIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MANAGER"
+            ]
+          },
+          "regionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "ManagerPage": {
+        "type": "object",
+        "required": [
+          "content",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Manager"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Contact": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role",
+          "phone",
+          "email",
+          "contactTypeId",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "***",
+              null
+            ]
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactTypeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Mention": {
+        "type": "object",
+        "required": [
+          "id",
+          "fullName",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "ContactPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "hasMore"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contact"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MentionPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "hasMore"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mention"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Predecessor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "assignee",
+          "deadline",
+          "status",
+          "statusName",
+          "taskSetId",
+          "needsReview",
+          "manuallyPaused",
+          "version",
+          "predecessors"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "assignee": {
+            "type": "object",
+            "required": [
+              "id",
+              "fullName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullName": {
+                "type": "string"
+              }
+            }
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "IN_PROGRESS",
+              "PAUSED",
+              "WAITING_APPROVAL",
+              "DONE",
+              "CANCELLED"
+            ]
+          },
+          "statusName": {
+            "type": "string"
+          },
+          "taskSetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "needsReview": {
+            "type": "boolean"
+          },
+          "manuallyPaused": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "predecessors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Predecessor"
+            }
+          }
+        }
+      },
+      "TaskSet": {
+        "type": "object",
+        "required": [
+          "id",
+          "triggerStatus",
+          "state",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "triggerStatus": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TaskPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "hasMore",
+          "taskSets"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "taskSets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskSet"
+            }
+          }
+        }
+      }
+    }
+  }
+}

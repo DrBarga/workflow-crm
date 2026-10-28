@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261001-security-unlock-events
+      author: bohdan
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE security_unlock_events (
+                  id UUID PRIMARY KEY,
+                  administrator_id UUID NOT NULL,
+                  user_id UUID NOT NULL,
+                  action VARCHAR(32) NOT NULL CHECK (action IN ('DEVICE_UNBLOCK', 'LOGIN_UNLOCK')),
+                  blocked_device_id UUID,
+                  outcome VARCHAR(16) NOT NULL DEFAULT 'REQUESTED' CHECK (outcome IN ('REQUESTED', 'APPLIED', 'UNCHANGED', 'FAILED')),
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CHECK ((action = 'DEVICE_UNBLOCK' AND blocked_device_id IS NOT NULL)
+                         OR (action = 'LOGIN_UNLOCK' AND blocked_device_id IS NULL))
+              );
+              CREATE INDEX security_unlock_events_user_idx ON security_unlock_events (user_id, created_at);
+              CREATE INDEX security_unlock_events_administrator_idx ON security_unlock_events (administrator_id, created_at);
+      rollback:
+        - dropTable:
+            tableName: security_unlock_events

@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-object-refusal
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261006_object_refusal.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261006_object_refusal_rollback.sql
+            relativeToChangelogFile: true

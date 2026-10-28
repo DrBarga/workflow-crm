@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261013_user_regions
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261013_user_regions.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql:
+            sql: DROP TABLE region_boundaries; DROP TABLE user_regions;

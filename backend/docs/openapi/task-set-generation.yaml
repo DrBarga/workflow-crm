@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: Workflow CRM - Task set generation
+  version: 1.0.0
+security:
+  - cookieAuth: []
+paths:
+  /api/objects/{id}/task-sets/preview:
+    parameters:
+      - {$ref: '#/components/parameters/ObjectId'}
+    post:
+      operationId: confirmableTaskSetPreview
+      summary: Validate a status transition and return its task confirmation token
+      parameters:
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreviewCommand'}
+      responses:
+        '200':
+          description: Preview only; no writes. Unresolved assignments and an initiator awaiting approval receive tasks with a null confirmationToken.
+          headers:
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: './object-status.yaml#/components/schemas/StatusResult'}
+        '400': {description: Invalid JSON or path parameter}
+        '401': {description: Authentication required}
+        '403': {description: Transition permission, scope or CSRF check failed}
+        '404': {description: Object not found}
+        '409': {description: Concurrent update or ambiguous template configuration}
+        '422': {description: Invalid transition, missing required fields or unresolved assignee}
+  /api/objects/{id}/task-sets:
+    parameters:
+      - {$ref: '#/components/parameters/ObjectId'}
+    post:
+      operationId: enqueueObjectTaskSet
+      summary: Confirm the preview and durably queue the transition and task set
+      description: The response does not wait for RabbitMQ or task creation. Status and tasks are committed atomically by the worker. Repeated keys or confirmations return the same job and taskSetId. Changed preview data requires a new preview. Existing approval requirements remain in force.
+      parameters:
+        - {$ref: '#/components/parameters/Csrf'}
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ConfirmationCommand'}
+      responses:
+        '202':
+          description: Durable job is queued; object status and tasks have not yet changed
+          headers:
+            Location: {schema: {type: string}, description: Job polling URL}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSetJob'}
+        '200':
+          description: Previously submitted job has completed, failed or is awaiting status approval
+          headers:
+            Location: {schema: {type: string}}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSetJob'}
+        '400': {description: Missing Idempotency-Key, invalid JSON or path parameter}
+        '401': {description: Authentication required}
+        '403': {description: Transition permission, scope or CSRF check failed}
+        '404': {description: Object not found}
+        '409': {description: Changed preview, reused key with another payload, another queued transition or ambiguous configuration}
+        '422': {description: Missing confirmation, invalid key, invalid transition or unresolved assignee}
+  /api/objects/{id}/task-sets/jobs/{jobId}:
+    get:
+      operationId: getObjectTaskSetJob
+      summary: Read the requesting user's task-set job
+      parameters:
+        - {$ref: '#/components/parameters/ObjectId'}
+        - name: jobId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Current durable job state
+          headers:
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskSetJob'}
+        '400': {description: Invalid path parameter}
+        '401': {description: Authentication required}
+        '403': {description: Object is outside the user's current scope}
+        '404': {description: Object or job not found; another user's job is not disclosed}
+components:
+  securitySchemes:
+    cookieAuth: {type: apiKey, in: cookie, name: workflow_access_token}
+  parameters:
+    ObjectId: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    Csrf: {name: X-XSRF-TOKEN, in: header, required: true, schema: {type: string}}
+  schemas:
+    PreviewCommand:
+      oneOf:
+        - {$ref: './object-status.yaml#/components/schemas/StatusCommand'}
+        - {$ref: '#/components/schemas/ApprovalCommand'}
+    ConfirmationCommand:
+      allOf:
+        - {$ref: '#/components/schemas/PreviewCommand'}
+        - type: object
+          required: [confirmationToken]
+          properties:
+            confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$'}
+    ApprovalCommand:
+      type: object
+      additionalProperties: false
+      required: [approvalRequestId]
+      properties:
+        approvalRequestId: {type: string, format: uuid}
+        assignees: {$ref: './task-assignment.yaml#/components/schemas/AssigneeSelections'}
+        confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+    TaskSetJob:
+      type: object
+      required: [id, objectId, actorId, state, attempts, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        objectId: {type: string, format: uuid}
+        actorId: {type: string, format: uuid}
+        state: {type: string, enum: [QUEUED, SUCCEEDED, AWAITING_APPROVAL, FAILED]}
+        taskSetId: {type: string, format: uuid, nullable: true, description: Created or reused active set; null when no template exists or before approval}
+        approvalRequestId: {type: string, format: uuid, nullable: true}
+        error: {type: string, nullable: true, description: PREVIEW_CHANGED, PERMISSIONS_CHANGED, INVALID_TRANSITION, GENERATION_FAILED or APPROVAL_REJECTED/APPROVAL_CANCELLED}
+        attempts: {type: integer, minimum: 0}
+        createdAt: {type: string, format: date-time}

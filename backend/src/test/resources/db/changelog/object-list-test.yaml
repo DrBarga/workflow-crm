@@ -1,0 +1,6 @@
+databaseChangeLog:
+  - include:
+      file: object-refusal-test.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: db/changelog/objects/20261006_object_list.yaml

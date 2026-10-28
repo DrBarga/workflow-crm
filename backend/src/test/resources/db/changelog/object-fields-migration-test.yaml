@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/tasks-ic-migration-test.yaml
+  - include:
+      file: db/changelog/objects/20261005_objects_field_revision.yaml

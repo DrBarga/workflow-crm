@@ -1,0 +1,46 @@
+{
+  "name": "workflow-crm-client",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "lint:fsd": "node scripts/check-fsd.mjs",
+    "typecheck": "next typegen && tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "eslint --fix --max-warnings=0",
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.12.0",
+    "@tabler/icons-react": "^3.49.0",
+    "next": "16.3.4",
+    "qrcode.react": "4.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-redux": "^9.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
+    "eslint-plugin-import": "^2.32.0",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "typescript-eslint": "^8.70.0"
+  }
+}

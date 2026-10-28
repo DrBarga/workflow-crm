@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261019_contact_audit_values
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261019_contact_audit_values.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261019_contact_audit_values_rollback.sql
+            relativeToChangelogFile: true

@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261002_object_duplicates_extension
+      author: workflowcrm
+      preConditions:
+        - onFail: CONTINUE
+        - sqlCheck:
+            expectedResult: '0'
+            sql: "SELECT count(*) FROM pg_extension WHERE extname='pg_trgm'"
+      changes:
+        - sql: CREATE EXTENSION pg_trgm
+      rollback:
+        - sql: DROP EXTENSION pg_trgm RESTRICT
+  - changeSet:
+      id: 20261002_object_duplicates
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261002_object_duplicates.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: 20261002_object_duplicates_rollback.sql
+            relativeToChangelogFile: true

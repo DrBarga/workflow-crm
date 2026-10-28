@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261001_objects_workflow_revision
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261001_objects_workflow_revision.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261001_objects_workflow_revision_rollback.sql
+            relativeToChangelogFile: true

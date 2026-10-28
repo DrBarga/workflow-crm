@@ -1,0 +1,62 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261027-ic-template-escalation
+      author: workflowcrm
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 4
+            sql: >-
+              SELECT count(*) FROM task_template_items i
+              JOIN task_templates t ON t.id=i.template_id
+              JOIN roles r ON r.id=i.result_recipient_role_id
+              LEFT JOIN roles a ON a.id=i.role_id
+              JOIN (VALUES
+                ('58050000-0000-4000-8000-000000000001','Заповнити карточку об''єкта',3,0,'OBJECT_MANAGER',NULL,true,'REGIONAL_MANAGER'),
+                ('58050000-0000-4000-8000-000000000002','Підготувати презентацію',3,1,'OBJECT_MANAGER',NULL,true,'REGIONAL_MANAGER'),
+                ('58050000-0000-4000-8000-000000000003','Отримати прорахунок ШІ',5,2,'OBJECT_MANAGER',NULL,true,'REGIONAL_MANAGER'),
+                ('58050000-0000-4000-8000-000000000004','Скласти модель',5,3,'REGIONAL_ROLE','REGIONAL_MANAGER',false,'DEVELOPMENT_DIRECTOR')
+              ) AS original(id,name,days,position,assignment,assignee_role,review,recipient_role)
+                ON i.id=original.id::uuid AND i.name=original.name AND i.deadline_offset_days=original.days
+                AND i.sort_order=original.position AND i.assignment_rule=original.assignment
+                AND a.code IS NOT DISTINCT FROM original.assignee_role
+                AND i.needs_review=original.review AND r.code=original.recipient_role
+              WHERE t.id='58050000-0000-4000-8000-000000000000' AND t.is_active AND t.version=0
+                AND t.contract_type IS NULL AND t.contract_type_id IS NULL
+                AND i.version=0 AND i.escalation_days IS NULL
+                AND (SELECT count(*) FROM task_template_items WHERE template_id=t.id)=4
+                AND (SELECT count(*) FROM task_template_item_dependencies WHERE template_id=t.id)=1
+                AND EXISTS (SELECT 1 FROM task_template_item_dependencies
+                  WHERE template_id=t.id AND item_id='58050000-0000-4000-8000-000000000004'
+                  AND predecessor_id='58050000-0000-4000-8000-000000000001')
+      changes:
+        - sql: >-
+            UPDATE task_template_items SET escalation_days=1,version=version+1
+            WHERE template_id='58050000-0000-4000-8000-000000000000'
+      rollback:
+        - sqlFile:
+            path: 20261027_ic_escalation_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+  - changeSet:
+      id: 20261027-contract-template-matrix
+      author: workflowcrm
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: >-
+              SELECT count(*) FROM task_templates t JOIN object_statuses s ON s.id=t.trigger_status_id
+              WHERE s.code='CONTRACT_APPROVAL' AND t.contract_type_id IS NULL AND t.contract_type IS NULL
+      changes:
+        - sqlFile: {path: seed/template_matrix_stage.sql, relativeToChangelogFile: true}
+        - sqlFile: {path: 20261027_contract_template_matrix.sql, relativeToChangelogFile: true}
+        - sqlFile:
+            path: seed/template_matrix_apply.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: 20261027_contract_matrix_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false

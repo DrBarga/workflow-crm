@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261021-task-set-queue
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261021_task_set_queue.sql, relativeToChangelogFile: true}
+      rollback:
+        - sqlFile: {path: 20261021_task_set_queue_rollback.sql, relativeToChangelogFile: true}

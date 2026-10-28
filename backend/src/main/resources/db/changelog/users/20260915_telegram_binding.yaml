@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260915_telegram_binding
+      author: workflowcrm
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: telegram_chat_id
+                  type: bigint
+        - createIndex:
+            tableName: users
+            indexName: ux_users_telegram_chat_id
+            unique: true
+            columns:
+              - column:
+                  name: telegram_chat_id
+      rollback:
+        - dropIndex:
+            tableName: users
+            indexName: ux_users_telegram_chat_id
+        - dropColumn:
+            tableName: users
+            columnName: telegram_chat_id

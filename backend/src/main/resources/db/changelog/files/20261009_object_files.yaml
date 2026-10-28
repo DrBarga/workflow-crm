@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261009-object-files
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261009_object_files.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'
+      rollback:
+        - sqlFile:
+            path: 20261009_object_files_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'

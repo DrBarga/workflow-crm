@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/pre-object-workflow-test.yaml
+  - include:
+      file: db/changelog/objects/20261001_objects_workflow_revision.yaml

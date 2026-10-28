@@ -1,0 +1,231 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260904_users_auth_model
+      author: workflowcrm
+      preConditions:
+        - dbms:
+            type: postgresql
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: varchar(160)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: regions
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: varchar(160)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_id
+                  type: uuid
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: regions
+            baseColumnNames: parent_id
+            referencedTableName: regions
+            referencedColumnNames: id
+            constraintName: fk_regions_parent
+            onDelete: RESTRICT
+        - createIndex:
+            tableName: regions
+            indexName: ix_regions_parent_id
+            columns:
+              - column:
+                  name: parent_id
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar(320)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: password_hash
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: full_name
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: region_id
+                  type: uuid
+              - column:
+                  name: status
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: users
+            baseColumnNames: role_id
+            referencedTableName: roles
+            referencedColumnNames: id
+            constraintName: fk_users_role
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: users
+            baseColumnNames: region_id
+            referencedTableName: regions
+            referencedColumnNames: id
+            constraintName: fk_users_region
+            onDelete: RESTRICT
+        - createIndex:
+            tableName: users
+            indexName: ix_users_role_id
+            columns:
+              - column:
+                  name: role_id
+        - createIndex:
+            tableName: users
+            indexName: ix_users_region_id
+            columns:
+              - column:
+                  name: region_id
+        - sql:
+            sql: CREATE UNIQUE INDEX ux_users_email_lower ON users (lower(email))
+        - sql:
+            sql: ALTER TABLE users ADD CONSTRAINT ck_users_status CHECK (status IN ('ACTIVE', 'DISABLED'))
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000001 }
+              - column: { name: code, value: MANAGER }
+              - column: { name: name, value: Менеджер }
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000002 }
+              - column: { name: code, value: REGIONAL_MANAGER }
+              - column: { name: name, value: Региональный менеджер }
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000003 }
+              - column: { name: code, value: DEVELOPMENT_DIRECTOR }
+              - column: { name: name, value: Директор департамента развития }
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000004 }
+              - column: { name: code, value: CEO }
+              - column: { name: name, value: CEO }
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000005 }
+              - column: { name: code, value: CONTRACT_MANAGER }
+              - column: { name: name, value: Договорник }
+        - insert:
+            tableName: roles
+            columns:
+              - column: { name: id, value: 00000000-0000-0000-0000-000000000006 }
+              - column: { name: code, value: SUPERADMIN }
+              - column: { name: name, value: Суперадмин }
+      rollback:
+        - dropTable:
+            tableName: users
+        - dropTable:
+            tableName: regions
+        - dropTable:
+            tableName: roles

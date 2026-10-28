@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/pre-object-duplicates-test.yaml
+  - include:
+      file: db/changelog/objects/20261002_object_duplicates.yaml
+  - include:
+      file: db/changelog/audit/20261002_object_duplicate_decisions.yaml

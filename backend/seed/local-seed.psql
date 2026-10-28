@@ -1,0 +1,78 @@
+-- Синтетические данные локального окружения.
+--
+-- Запуск: `docker compose run --rm seed` из backend/ (см. README).
+-- Только для локальной разработки: сервис seed есть лишь в backend/compose.yaml,
+--
+-- Все данные выдуманы. Почты — на зарезервированном домене example.com (RFC 2606),
+-- регионы — «Демо-…», реальных контактов, телефонов и email Workflow здесь быть не должно.
+--
+-- Повторный запуск безопасен: вставка идёт по уникальным ключам (regions.code,
+-- lower(users.email)) через ON CONFLICT DO NOTHING, существующие строки не меняются.
+-- Поэтому пароль, заданный при первом запуске, сохраняется и после смены
+-- SEED_USER_PASSWORD — для нового пароля нужен сброс базы.
+
+-- Пароль передаётся psql-переменной из SEED_USER_PASSWORD. psql не подставляет
+-- переменные внутри $$-блоков, поэтому значение кладётся в настройку сессии.
+SELECT set_config('seed.user_password', :'seed_user_password', false);
+
+DO $$
+BEGIN
+    IF to_regclass('public.users') IS NULL OR to_regclass('public.regions') IS NULL THEN
+        RAISE EXCEPTION 'Схема не создана. Сначала поднимите окружение (docker compose up): миграции применяет backend при старте.';
+    END IF;
+
+    -- Тот же минимум, что и при установке пароля через API (ResetPasswordRequest)
+    IF length(current_setting('seed.user_password')) < 12 THEN
+        RAISE EXCEPTION 'SEED_USER_PASSWORD не задан или короче 12 символов — задайте его в .env.';
+    END IF;
+END
+$$;
+
+-- Регионы: два верхнего уровня и по два дочерних. Коды с префиксом DEMO_,
+-- чтобы их нельзя было спутать с официальным справочником регионов Workflow.
+INSERT INTO regions (id, code, name, parent_id)
+VALUES
+    ('5eed0000-0000-0000-0000-000000000101', 'DEMO_NORTH', 'Демо-регион Север', NULL),
+    ('5eed0000-0000-0000-0000-000000000102', 'DEMO_SOUTH', 'Демо-регион Юг', NULL)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO regions (id, code, name, parent_id)
+SELECT seeded_region.id, seeded_region.code, seeded_region.name, parent_region.id
+FROM (
+    VALUES
+        ('5eed0000-0000-0000-0000-000000000111'::uuid, 'DEMO_NORTH_A', 'Демо-округ Север-А', 'DEMO_NORTH'),
+        ('5eed0000-0000-0000-0000-000000000112'::uuid, 'DEMO_NORTH_B', 'Демо-округ Север-Б', 'DEMO_NORTH'),
+        ('5eed0000-0000-0000-0000-000000000121'::uuid, 'DEMO_SOUTH_A', 'Демо-округ Юг-А', 'DEMO_SOUTH'),
+        ('5eed0000-0000-0000-0000-000000000122'::uuid, 'DEMO_SOUTH_B', 'Демо-округ Юг-Б', 'DEMO_SOUTH')
+) AS seeded_region (id, code, name, parent_code)
+JOIN regions parent_region ON parent_region.code = seeded_region.parent_code
+ON CONFLICT (code) DO NOTHING;
+
+-- Пользователи: по одному на каждую роль плюс отключённый — для проверки 403.
+-- Регион задан ролям из USER_REGION_REQUIRED_ROLES, остальным — NULL.
+-- Хеш — bcrypt с cost 12, как у BCryptPasswordEncoder приложения.
+INSERT INTO users (email, password_hash, full_name, role_id, region_id, status)
+SELECT
+    seeded_user.email,
+    crypt(current_setting('seed.user_password'), gen_salt('bf', 12)),
+    seeded_user.full_name,
+    user_role.id,
+    user_region.id,
+    seeded_user.status
+FROM (
+    VALUES
+        ('superadmin@example.com', 'Демо Суперадмин', 'SUPERADMIN', NULL, 'ACTIVE'),
+        ('ceo@example.com', 'Демо CEO', 'CEO', NULL, 'ACTIVE'),
+        ('development.director@example.com', 'Демо Директор развития', 'DEVELOPMENT_DIRECTOR', NULL, 'ACTIVE'),
+        ('regional.manager@example.com', 'Демо Региональный менеджер', 'REGIONAL_MANAGER', 'DEMO_NORTH', 'ACTIVE'),
+        ('manager@example.com', 'Демо Менеджер', 'MANAGER', 'DEMO_NORTH_A', 'ACTIVE'),
+        ('contract.manager@example.com', 'Демо Договорник', 'CONTRACT_MANAGER', 'DEMO_SOUTH_A', 'ACTIVE'),
+        ('disabled.manager@example.com', 'Демо Отключённый менеджер', 'MANAGER', 'DEMO_SOUTH_B', 'DISABLED')
+) AS seeded_user (email, full_name, role_code, region_code, status)
+JOIN roles user_role ON user_role.code = seeded_user.role_code
+LEFT JOIN regions user_region ON user_region.code = seeded_user.region_code
+ON CONFLICT ((lower(email))) DO NOTHING;
+
+SELECT
+    (SELECT count(*) FROM regions WHERE code LIKE 'DEMO\_%') AS demo_regions,
+    (SELECT count(*) FROM users WHERE email LIKE '%@example.com') AS demo_users;

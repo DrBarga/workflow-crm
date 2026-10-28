@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: 20260827_shared_baseline.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261006_event_outbox.yaml
+      relativeToChangelogFile: true

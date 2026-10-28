@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-status-transitions
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261006_status_transitions.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261006_status_transitions_rollback.sql
+            relativeToChangelogFile: true

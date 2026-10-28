@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: 20260916_auth_password_recovery.yaml
+      relativeToChangelogFile: true

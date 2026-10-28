@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261002_objects_transition_policy_schema
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261002_objects_transition_policy_schema.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261002_objects_transition_policy_schema_rollback.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 20261002_objects_transition_policy_seed
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261002_objects_transition_policy_seed.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261002_objects_transition_policy_seed_rollback.sql
+            relativeToChangelogFile: true

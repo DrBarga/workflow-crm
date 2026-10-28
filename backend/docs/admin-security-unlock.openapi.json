@@ -1,0 +1,433 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Workflow administrative security API",
+    "version": "1.0.0",
+    "description": "Requires a currently active SUPERADMIN account. POST uses the existing /api/auth/csrf cookie/header flow. Does not enable disabled users or restore revoked access. See admin-security-unlock.md for audit and failure semantics."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "security": [
+    {
+      "accessCookie": []
+    }
+  ],
+  "paths": {
+    "/api/users/{userId}/blocked-devices": {
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listBlockedDevices",
+        "summary": "List a user's blocked devices",
+        "responses": {
+          "200": {
+            "description": "Newest blocks first; empty list is []",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlockedDevice"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/blocked-devices/{blockId}/unblock": {
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "blockId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "unblockDevice",
+        "summary": "Unblock a device without restoring its trust or sessions",
+        "security": [
+          {
+            "accessCookie": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Device unblocked and outcome journaled"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/login-lock": {
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getLoginLock",
+        "summary": "Inspect temporary login lock and common policy",
+        "responses": {
+          "200": {
+            "description": "Current lock and shared configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginLock"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/login-lock/unlock": {
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "unlockLogin",
+        "summary": "Remove a temporary login lock and reset its failed-attempt counter",
+        "security": [
+          {
+            "accessCookie": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Login unlocked and outcome journaled"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "workflow_access_token"
+      },
+      "csrfCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "XSRF-TOKEN"
+      },
+      "csrfHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-XSRF-TOKEN"
+      }
+    },
+    "schemas": {
+      "BlockedDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "userAgent",
+          "ipAddress",
+          "blockedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Opaque block identifier; never a device cookie or digest"
+          },
+          "userAgent": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "ipAddress": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "blockedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Null for legacy blocks without metadata"
+          }
+        }
+      },
+      "LoginLock": {
+        "type": "object",
+        "required": [
+          "blocked",
+          "failedAttempts",
+          "maxAttempts",
+          "lockDurationSeconds",
+          "blockedUntil"
+        ],
+        "properties": {
+          "blocked": {
+            "type": "boolean"
+          },
+          "failedAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 5
+          },
+          "lockDurationSeconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "example": 900
+          },
+          "blockedUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "status",
+          "error",
+          "code",
+          "message",
+          "path",
+          "correlationId",
+          "violations"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "field",
+                "message"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed UUID parameter",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Active superadmin required; POST also requires CSRF",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "User or selected blocked device not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Security storage or audit journal unavailable; reload before retrying",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Block changed or login is not temporarily locked",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Administrative action rate limit exceeded",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+}

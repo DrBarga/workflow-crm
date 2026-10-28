@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261005_objects_field_revision
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261005_objects_field_revision.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261005_objects_field_revision_rollback.sql
+            relativeToChangelogFile: true

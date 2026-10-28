@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: 20261006_status_notifications.yaml
+      relativeToChangelogFile: true

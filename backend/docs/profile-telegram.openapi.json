@@ -1,0 +1,173 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Workflow CRM profile and Telegram binding",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "paths": {
+    "/api/profile": {
+      "get": {
+        "operationId": "currentProfile",
+        "summary": "Read the current account profile",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "email",
+                    "fullName",
+                    "role",
+                    "regionId",
+                    "telegram"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "regionId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "telegram": {
+                      "type": "object",
+                      "required": ["linked", "revision"],
+                      "properties": {
+                        "linked": {
+                          "type": "boolean"
+                        },
+                        "revision": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected"
+          },
+          "403": {
+            "description": "Request rejected"
+          }
+        }
+      }
+    },
+    "/api/profile/telegram/link": {
+      "post": {
+        "operationId": "requestProfileTelegramLink",
+        "summary": "Issue a ten-minute single-use link for binding or replacement",
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["link", "expiresAt", "expiresInSeconds"],
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "Single-use private bot link; expires after ten minutes."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "expiresInSeconds": {
+                      "type": "integer",
+                      "enum": [600]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected"
+          },
+          "403": {
+            "description": "Request rejected"
+          },
+          "503": {
+            "description": "Bot configuration unavailable"
+          }
+        }
+      }
+    },
+    "/api/profile/telegram": {
+      "delete": {
+        "operationId": "unlinkProfileTelegram",
+        "summary": "Unlink Telegram and revoke the current account sessions",
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Unlinked; sign in again"
+          },
+          "401": {
+            "description": "Request rejected"
+          },
+          "403": {
+            "description": "Request rejected"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "workflow_access_token"
+      },
+      "csrf": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-XSRF-TOKEN",
+        "description": "Obtain the CSRF cookie and token from GET /api/auth/csrf before a write."
+      }
+    }
+  }
+}

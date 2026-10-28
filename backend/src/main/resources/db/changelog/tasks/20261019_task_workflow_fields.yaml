@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261019-task-workflow-fields
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261019_task_workflow_fields.sql, relativeToChangelogFile: true}
+      rollback:
+        - sqlFile: {path: 20261019_task_workflow_fields_rollback.sql, relativeToChangelogFile: true}

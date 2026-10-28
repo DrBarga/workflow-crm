@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261021-ic-preparation-template
+      author: workflowcrm
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: >-
+              SELECT count(*) FROM task_templates t JOIN object_statuses s ON s.id=t.trigger_status_id
+              WHERE s.code='IC_PREPARATION' AND t.contract_type_id IS NULL AND t.contract_type IS NULL
+      changes:
+        - sqlFile: {path: 20261021_ic_preparation_template.sql, relativeToChangelogFile: true}
+      rollback:
+        - sql: DELETE FROM task_templates WHERE id='58050000-0000-4000-8000-000000000000'

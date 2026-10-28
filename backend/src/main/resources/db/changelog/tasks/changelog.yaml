@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: 20261005_tasks_ic_transition.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261007_task_reassignment.yaml
+      relativeToChangelogFile: true

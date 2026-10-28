@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-event-outbox
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261006_event_outbox.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql: DROP TABLE event_outbox;

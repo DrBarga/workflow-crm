@@ -1,0 +1,109 @@
+openapi: 3.0.3
+info:
+  title: User management
+  version: 1.1.0
+paths:
+  /api/users:
+    get:
+      summary: List users with all assigned regions
+      description: 'SUPERADMIN retains administrative UserPage. REGIONAL_MANAGER and DEVELOPMENT_DIRECTOR may only select ACTIVE managers with role=MANAGER and required regionId. They receive ManagerPage without email or administrative fields; regional scope applies. Prefer /api/managers for a consistent picker projection across all permitted roles.'
+      security: [{accessCookie: []}]
+      parameters:
+        - {in: query, name: regionId, schema: {type: string, format: uuid}, description: Matches any explicit assignment}
+        - {in: query, name: role, schema: {$ref: '#/components/schemas/Role'}}
+        - {in: query, name: status, schema: {type: string, enum: [ACTIVE, DISABLED]}}
+        - {in: query, name: page, schema: {type: integer, minimum: 0, maximum: 100000, default: 0}}
+        - {in: query, name: size, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: Administrative user page or scoped manager picker, content: {application/json: {schema: {oneOf: [{$ref: '#/components/schemas/UserPage'}, {$ref: 'openapi/frontend-object-api.json#/components/schemas/ManagerPage'}]}}}}
+        '400': {description: Invalid filter or page}
+        '401': {description: Authentication required}
+        '403': {description: 'Role, filter or region is not permitted'}
+        '422': {description: Manager picker requires regionId and valid pagination}
+    post:
+      summary: Create an inactive account and issue its password invitation
+      security: [{accessCookie: []}]
+      description: CSRF cookie and X-XSRF-TOKEN header are required. Use regionIds for multiple assignments or the compatibility regionId for one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - {$ref: '#/components/schemas/RegionInput'}
+                - type: object
+                  required: [email, fullName, role]
+                  properties:
+                    email: {type: string, format: email, maxLength: 320}
+                    fullName: {type: string, minLength: 1, maxLength: 200}
+      responses:
+        '201': {description: User created, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}
+        '400': {description: 'Invalid input, unknown region or missing required assignment'}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator and CSRF required}
+        '409': {description: Email already exists}
+  /api/users/{id}:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      security: [{accessCookie: []}]
+      responses:
+        '200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: User not found}
+    patch:
+      security: [{accessCookie: []}]
+      description: CSRF is required. Omitted region fields preserve all assignments. An empty regionIds array clears them when allowed by the resulting role. Null regionIds, null elements and both region fields together are rejected. Reordered or repeated UUIDs are a no-op.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/AccessInput'}}}
+      responses:
+        '200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}
+        '400': {description: 'Invalid or empty update, unknown region or missing required assignment'}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator and CSRF required}
+        '404': {description: User not found}
+        '409': {description: 'Stale version, self-deactivation or pending password setup'}
+components:
+  securitySchemes:
+    accessCookie: {type: apiKey, in: cookie, name: workflow_access_token}
+  schemas:
+    Role: {type: string, enum: [MANAGER, REGIONAL_MANAGER, DEVELOPMENT_DIRECTOR, CEO, CONTRACT_MANAGER, SUPERADMIN]}
+    RegionInput:
+      type: object
+      properties:
+        role: {$ref: '#/components/schemas/Role'}
+        regionIds: {type: array, items: {type: string, format: uuid}, description: Complete replacement set; duplicate UUIDs are deduplicated}
+        regionId: {type: string, format: uuid, nullable: true, deprecated: true}
+    AccessInput:
+      allOf:
+        - {$ref: '#/components/schemas/RegionInput'}
+        - type: object
+          properties:
+            status: {type: string, enum: [ACTIVE, DISABLED]}
+            version: {type: integer, format: int64, minimum: 0}
+    UserPage:
+      type: object
+      properties:
+        content: {type: array, items: {$ref: '#/components/schemas/User'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalElements: {type: integer, format: int64}
+        totalPages: {type: integer}
+    User:
+      type: object
+      required: [id, email, fullName, role, regionIds, status, passwordSet, telegramLinked, createdAt, updatedAt, version]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        fullName: {type: string}
+        role: {$ref: '#/components/schemas/Role'}
+        regionIds: {type: array, uniqueItems: true, items: {type: string, format: uuid}}
+        regionId: {type: string, format: uuid, nullable: true, deprecated: true, description: First sorted assignment or null; not a separately stored region}
+        status: {type: string, enum: [ACTIVE, DISABLED]}
+        passwordSet: {type: boolean}
+        telegramLinked: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        version: {type: integer, format: int64, minimum: 0}

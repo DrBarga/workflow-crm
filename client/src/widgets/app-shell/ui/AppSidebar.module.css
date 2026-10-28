@@ -1,0 +1,198 @@
+/*
+ * Боковой рельс из макета workflow-app.html: узкая полоса с фирменным
+ * градиентом, активный пункт «вырезан» в полотно страницы.
+ */
+.sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: none;
+  height: 100dvh;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: var(--sidebar-w);
+  background: linear-gradient(180deg, var(--brand-500) 0%, var(--brand-600) 100%);
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+  }
+}
+
+.logo {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  height: var(--topbar-h);
+}
+
+.logoMark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(34 31 31 / 0.2);
+}
+
+.nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding-top: 20px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.divider {
+  width: 28px;
+  height: 1px;
+  margin: 8px auto;
+  background: rgb(255 255 255 / 0.25);
+}
+
+.item {
+  position: relative;
+}
+
+/* Высота пункта: иконка 40px плюс по 10px воздуха сверху и снизу. */
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(2.5rem + 20px);
+  text-decoration: none;
+}
+
+/* Активный пункт заезжает на полотно страницы и скругляется слева. */
+.linkActive {
+  justify-content: flex-start;
+  background: var(--surface-page);
+  margin-left: calc((var(--sidebar-w) - 2.5rem) / 2 - 10px);
+  padding-left: 10px;
+  border-top-left-radius: 20px;
+  border-bottom-left-radius: 20px;
+}
+
+.icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: rgb(255 255 255 / 0.85);
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.link:hover .icon {
+  background: rgb(255 255 255 / 0.15);
+  color: #fff;
+}
+
+.iconActive,
+.link:hover .iconActive {
+  color: #fff;
+  background: linear-gradient(155deg, var(--brand-400) 0%, var(--brand-600) 100%);
+  box-shadow: 0 3px 9px -3px rgb(191 98 0 / 0.7);
+}
+
+/* Уголки, которыми вырез активного пункта стыкуется с полотном. */
+.notch {
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.notchTop {
+  top: -20px;
+}
+
+.notchBottom {
+  bottom: -20px;
+}
+
+.notch span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 0 0 20px var(--surface-page);
+}
+
+.notchTop span {
+  border-bottom-right-radius: 20px;
+}
+
+.notchBottom span {
+  border-top-right-radius: 20px;
+}
+
+.tooltip {
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  z-index: 50;
+  margin-left: 12px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-md);
+  background: var(--ink-900);
+  padding: 4px 8px;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  white-space: nowrap;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.link:hover .tooltip,
+.link:focus-visible .tooltip {
+  opacity: 1;
+}
+
+.footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 16px;
+}
+
+.footerButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: none;
+  padding: 0;
+  border-radius: var(--radius-md);
+  color: rgb(255 255 255 / 0.85);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.footerButton:hover {
+  background: rgb(255 255 255 / 0.15);
+  color: #fff;
+}
+
+.footerButton:hover .tooltip {
+  opacity: 1;
+}

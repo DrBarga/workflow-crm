@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261005-object-creation-name
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261005_object_creation_name.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261005_object_creation_name_rollback.sql
+            relativeToChangelogFile: true

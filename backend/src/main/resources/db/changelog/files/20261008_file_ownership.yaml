@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261008-file-ownership
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261008_file_ownership.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261008_file_ownership_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'

@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/object-creation-fields-test.yaml
+  - include:
+      file: db/changelog/objects/20261005_ic_transition_task_policy.yaml

@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261007-task-reassignment
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261007_task_reassignment.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261007_task_reassignment_rollback.sql
+            relativeToChangelogFile: true

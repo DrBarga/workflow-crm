@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260827_shared_baseline
+      author: workflowcrm
+      preConditions:
+        - dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: CREATE EXTENSION IF NOT EXISTS pgcrypto
+        - createTable:
+            tableName: app_settings
+            remarks: Application-wide configuration values
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: setting_key
+                  type: varchar(160)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: setting_value
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: app_settings
+        - sql:
+            sql: DROP EXTENSION IF EXISTS pgcrypto

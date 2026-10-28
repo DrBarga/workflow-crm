@@ -1,0 +1,8 @@
+.next
+node_modules
+public
+regulations-for-ai-main
+
+# Макет от дизайнера — исходник as is, переформатировать нечего
+docs/workflow-login.html
+docs/workflow-app.html

@@ -1,0 +1,299 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Workflow CRM IC decision",
+    "version": "1.3.0",
+    "description": "T6714 and T6712: IC decision, task preview and atomic transition. Refusal cancels all unfinished object tasks; approved outcomes preserve them. An active target-status task set suppresses preview and generation."
+  },
+  "paths": {
+    "/api/objects/{id}/ic-decision": {
+      "patch": {
+        "operationId": "recordIcDecision",
+        "tags": [
+          "Objects"
+        ],
+        "security": [
+          {
+            "accessCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              },
+              "example": {
+                "decision": "APPROVED_WITH_CONDITIONS",
+                "date": "2026-10-05",
+                "conditions": "Погодити орендну ставку",
+                "version": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "saved=false: preview only, no writes. Repeat identical request with confirmationToken after explicit confirmation. saved=true: committed decision and transition. No configured template: direct save under FR-95.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or invalid path UUID"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Missing CSRF or inactive/disallowed role or region"
+          },
+          "404": {
+            "description": "Object not found"
+          },
+          "409": {
+            "description": "Stale object version, changed preview, or unavailable transition configuration"
+          },
+          "422": {
+            "description": "Invalid fields, IC decision outside IC_PREPARATION, missing conditions/date/refusal comment, text over 50 characters, invalid task template or blocked unfinished tasks"
+          },
+          "500": {
+            "description": "Operation failed; transaction rolled back"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "workflow_access_token"
+      }
+    },
+    "schemas": {
+      "DecisionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decision",
+          "date",
+          "version"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "APPROVED_WITH_CONDITIONS",
+              "REFUSED"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "conditions": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 50,
+            "description": "Required and nonblank only for APPROVED_WITH_CONDITIONS; otherwise omit or null."
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "confirmationToken": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Echo preview token only after explicit confirmation. Bound to actor and unchanged input/state."
+          },
+          "assignees": {
+            "type": "object",
+            "description": "Template item UUID keys mapped to active candidate user UUIDs. Required choices must be resolved before confirmation.",
+            "additionalProperties": {"type": "string", "format": "uuid"}
+          },
+          "refusalComment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 50,
+            "description": "Required and nonblank for REFUSED, up to 50 Unicode characters after trimming; otherwise omit or null. Stored in the object and decision history."
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "APPROVED"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "conditions": {
+                "type": "string",
+                "nullable": false,
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "decision": {
+                "enum": [
+                  "APPROVED_WITH_CONDITIONS"
+                ]
+              }
+            },
+            "required": [
+              "conditions"
+            ]
+          },
+          {
+            "properties": {
+              "refusalComment": {
+                "type": "string",
+                "nullable": false,
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "decision": {
+                "enum": [
+                  "REFUSED"
+                ]
+              }
+            },
+            "required": [
+              "refusalComment"
+            ]
+          }
+        ]
+      },
+      "DecisionResponse": {
+        "type": "object",
+        "required": [
+          "saved",
+          "id",
+          "status",
+          "version",
+          "decision",
+          "date",
+          "tasks"
+        ],
+        "properties": {
+          "saved": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "APPROVED_WITH_CONDITIONS",
+              "REFUSED"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "conditions": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "confirmationToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewTask"
+            }
+          },
+          "refusalComment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 50,
+            "description": "Optional comment for REFUSED only; stored in the object and decision history."
+          }
+        }
+      },
+      "PreviewTask": {
+        "type": "object",
+        "required": [
+          "templateItemId",
+          "name",
+          "assigneeId",
+          "deadline"
+        ],
+        "properties": {
+          "templateItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assigneeName": {
+            "type": "string",
+            "description": "Current display name of the configured assignee."
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    }
+  }
+}

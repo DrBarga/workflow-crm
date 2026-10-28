@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/shared/changelog.yaml
+  - include:
+      file: db/changelog/users/changelog.yaml
+  - include:
+      file: db/changelog/auth/changelog.yaml
+  - include:
+      file: db/changelog/notifications/changelog.yaml
+  - include:
+      file: db/changelog/audit/20260923_telegram_binding_events.yaml
+  - include:
+      file: db/changelog/audit/20260930_password_setup_events.yaml
+  - include:
+      file: db/changelog/audit/20261001_security_unlock_events.yaml
+  - include:
+      file: db/changelog/integrations/changelog.yaml

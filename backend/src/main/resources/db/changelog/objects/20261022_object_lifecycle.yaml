@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261022-object-lifecycle
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261022_object_lifecycle.sql, relativeToChangelogFile: true, splitStatements: false}
+      rollback:
+        - sqlFile: {path: 20261022_object_lifecycle_rollback.sql, relativeToChangelogFile: true, splitStatements: false}

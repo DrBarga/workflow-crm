@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261013_refusal_cancel_all
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261013_refusal_cancel_all.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261013_refusal_cancel_all_rollback.sql
+            relativeToChangelogFile: true

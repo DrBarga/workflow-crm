@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-status-approval-requests
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261006_status_approval_requests.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql: DROP TABLE status_approval_requests;
+  - include:
+      file: 20261007_entry_point_approval_requests.yaml
+      relativeToChangelogFile: true

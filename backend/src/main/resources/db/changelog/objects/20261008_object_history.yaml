@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261008-object-history
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261008_object_history.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'
+      rollback:
+        - sqlFile:
+            path: 20261008_object_history_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'

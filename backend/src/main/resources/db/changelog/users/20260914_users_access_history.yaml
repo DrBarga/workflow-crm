@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260914_users_access_history
+      author: bohdan
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE user_access_history (
+                id uuid PRIMARY KEY,
+                actor_id uuid NOT NULL,
+                user_id uuid NOT NULL,
+                action varchar(32) NOT NULL,
+                old_role varchar(64),
+                new_role varchar(64) NOT NULL,
+                old_region_id uuid,
+                new_region_id uuid,
+                old_status varchar(16),
+                new_status varchar(16) NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+              );
+              CREATE INDEX ix_user_access_history_user_created ON user_access_history (user_id, created_at);
+      rollback:
+        - dropTable:
+            tableName: user_access_history

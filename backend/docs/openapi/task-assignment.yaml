@@ -1,0 +1,99 @@
+openapi: 3.0.3
+info:
+  title: Workflow CRM - Task assignment
+  version: 1.0.0
+security:
+  - cookieAuth: []
+paths:
+  /api/objects/{id}/tasks/{taskId}/assignees:
+    parameters:
+      - {$ref: '#/components/parameters/ObjectId'}
+      - {$ref: '#/components/parameters/TaskId'}
+    get:
+      operationId: getTaskAssigneeCandidates
+      summary: List active replacement candidates for a regional lead or development director
+      responses:
+        '200':
+          description: Candidates matching the historical template role and current object region
+          headers:
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Candidate'}
+        '400': {description: Invalid path UUID}
+        '401': {description: Authentication required}
+        '403': {description: Role or object region denied}
+        '404': {description: Object or task not found}
+        '409': {description: Object deletion is in progress}
+        '422': {description: Completed or cancelled task}
+  /api/objects/{id}/tasks/{taskId}/assignee:
+    parameters:
+      - {$ref: '#/components/parameters/ObjectId'}
+      - {$ref: '#/components/parameters/TaskId'}
+    patch:
+      operationId: changeTaskAssignee
+      summary: Change an open task assignee with version checking and assignment history
+      parameters:
+        - name: X-XSRF-TOKEN
+          in: header
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assigneeId, version]
+              properties:
+                assigneeId: {type: string, format: uuid}
+                version: {type: integer, format: int64, minimum: 0}
+      responses:
+        '200':
+          description: Assignment saved or unchanged when the same active assignee is submitted
+          headers:
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [taskId, assigneeId, version, changed]
+                properties:
+                  taskId: {type: string, format: uuid}
+                  assigneeId: {type: string, format: uuid}
+                  version: {type: integer, format: int64, minimum: 0}
+                  changed: {type: boolean}
+        '400': {description: Invalid JSON or path UUID}
+        '401': {description: Authentication required}
+        '403': {description: Role, region or CSRF denied}
+        '404': {description: Object or task not found}
+        '409': {description: Stale task version or object deletion in progress}
+        '422': {description: Invalid request, closed task, inactive or ineligible assignee}
+components:
+  securitySchemes:
+    cookieAuth: {type: apiKey, in: cookie, name: workflow_access_token}
+  parameters:
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    Candidate:
+      type: object
+      required: [id, fullName]
+      properties:
+        id: {type: string, format: uuid}
+        fullName: {type: string, nullable: true}
+    AssigneeSelections:
+      type: object
+      description: Template item UUID keys mapped to selected candidate UUIDs; used in status and approval commands
+      additionalProperties: {type: string, format: uuid}

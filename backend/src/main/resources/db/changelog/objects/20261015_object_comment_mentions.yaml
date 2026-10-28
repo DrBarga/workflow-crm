@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261015-object-comment-mentions
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261015_object_comment_mentions.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'
+      rollback:
+        - sqlFile:
+            path: 20261015_object_comment_mentions_rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            endDelimiter: ';;'

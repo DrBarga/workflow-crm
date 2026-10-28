@@ -1,0 +1,60 @@
+/*
+ * Дизайн-токены WORKFLOW 2026. Источник — макет входа (workflow-login.html),
+ * раздел «ДИЗАЙН-ТОКЕНИ». Компоненты обращаются только к токенам:
+ * литеральных цветов в *.module.css быть не должно.
+ */
+:root {
+  --brand-50: #fff5eb;
+  --brand-100: #ffecd9;
+  --brand-400: #ffa240;
+  --brand-500: #ff8300;
+  --brand-600: #e67600;
+  --brand-700: #bf6200;
+
+  --leaf-500: #78b81f;
+  --leaf-600: #6ca61c;
+
+  --ink-50: #fef5ec;
+  --ink-100: #f6eee4;
+  --ink-200: #e9e0d5;
+  --ink-300: #d5cbbf;
+  --ink-400: #b4a99d;
+  --ink-500: #8e837a;
+  --ink-600: #6b625b;
+  --ink-900: #221f1f;
+
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --info: #0284c7;
+  --info-soft: #e0f2fe;
+
+  --surface-page: var(--ink-50);
+  --surface-card: #fff;
+  --surface-sunken: var(--ink-100);
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-600);
+  --text-brand: var(--brand-700);
+  --fill-brand: var(--brand-500);
+  --border-subtle: var(--ink-200);
+  --border-strong: var(--ink-300);
+
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 7px;
+  --r-xl: 12px;
+
+  /* Радиусы и тень каркаса приложения — из макета workflow-app.html. */
+  --radius-md: 10px;
+  --radius-xl: 16px;
+  --shadow-pop: 0 1px 2px rgb(34 31 31 / 0.08), 0 12px 32px -8px rgb(34 31 31 / 0.18);
+
+  /* Размеры каркаса: боковой рельс, верхняя полоса, нижняя навигация. */
+  --sidebar-w: 76px;
+  --topbar-h: 60px;
+  --bottomnav-h: 64px;
+  --text-meta: 11.5px;
+}

@@ -1,0 +1,38 @@
+/* Каркас страницы: рельс слева, содержимое справа, нижняя навигация на телефоне. */
+.shell {
+  position: relative;
+  display: flex;
+  min-height: 100dvh;
+  flex: 1;
+}
+
+/* Мягкие пятна фона из макета: тёплое слева сверху и зелёное справа. */
+.backdrop {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  background:
+    radial-gradient(900px 600px at -8% -10%, rgb(255 131 0 / 0.16), transparent 62%),
+    radial-gradient(700px 520px at 108% 8%, rgb(120 184 31 / 0.08), transparent 58%);
+}
+
+.column {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.content {
+  min-height: 0;
+  flex: 1;
+  /* Место под нижнюю навигацию, иначе она перекрывает конец страницы. */
+  padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .content {
+    padding-bottom: 0;
+  }
+}

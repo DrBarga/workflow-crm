@@ -1,0 +1,245 @@
+openapi: 3.0.3
+info:
+  title: Workflow Contacts API
+  version: 1.0.0
+  description: T5833. Cookie authentication, CSRF on writes, masked phone responses.
+security:
+  - accessToken: []
+paths:
+  /api/contacts:
+    post:
+      operationId: createContact
+      summary: Create a contact and warn about visible phone duplicates
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContact'
+      responses:
+        '201':
+          description: Created even when duplicateContacts is nonempty
+          headers:
+            Location:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Mutation'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Validation'}
+  /api/contacts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getContact
+      summary: Read a contact with visible linked objects
+      responses:
+        '200':
+          description: Visible active contact; Cache-Control no-store
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Contact'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/Missing'}
+    patch:
+      operationId: patchContact
+      summary: Update supplied fields using the current version
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PatchContact'}
+      responses:
+        '200':
+          description: Updated or unchanged; Cache-Control no-store
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Mutation'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/Missing'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Validation'}
+    delete:
+      operationId: deleteContact
+      summary: Superadmin soft deletion, preserving links and recording history
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+        - name: version
+          in: query
+          required: true
+          schema: {type: integer, format: int64, minimum: 0}
+        - name: confirmationToken
+          in: query
+          description: Returned by a previous 409 after explicit user confirmation
+          schema: {type: string, pattern: '^[0-9a-f]{64}$'}
+      responses:
+        '204': {description: Soft deleted; Cache-Control no-store}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/Missing'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Validation'}
+components:
+  securitySchemes:
+    accessToken:
+      type: apiKey
+      in: cookie
+      name: workflow_access_token
+  parameters:
+    Csrf:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      description: Must match the XSRF-TOKEN cookie obtained from /api/auth/csrf
+      schema: {type: string}
+  responses:
+    InvalidRequest:
+      description: Malformed JSON or URL parameter
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Forbidden:
+      description: Inactive role, operation outside role or object scope, unlinked contact edit by non-admin, or invalid CSRF
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Missing:
+      description: Contact absent, deleted or outside visibility scope
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Validation:
+      description: Invalid, unknown or protected field; unavailable object or inactive type
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Conflict:
+      description: CONCURRENT_UPDATE or CONTACT_DELETION_CONFIRMATION_REQUIRED
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiError'
+              - type: object
+                required: [currentVersion]
+                properties:
+                  currentVersion: {type: integer, format: int64}
+                  confirmationToken: {type: string, nullable: true, pattern: '^[0-9a-f]{64}$'}
+  schemas:
+    CreateContact:
+      type: object
+      additionalProperties: false
+      required: [name, role]
+      anyOf:
+        - required: [phone]
+        - required: [email]
+      description: At least one nonblank valid phone or email is required
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        role: {type: string, minLength: 1, maxLength: 100}
+        phone: {type: string, nullable: true, maxLength: 64, example: '067 123-45-67'}
+        email: {type: string, format: email, nullable: true, maxLength: 254}
+        comment: {type: string, nullable: true, maxLength: 2000}
+        contactTypeId: {type: string, format: uuid, nullable: true}
+        objectIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: {type: string, format: uuid}
+    PatchContact:
+      type: object
+      additionalProperties: false
+      required: [version]
+      minProperties: 2
+      description: Omission preserves fields; null clears optional fields. A channel must remain.
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        name: {type: string, minLength: 1, maxLength: 200}
+        role: {type: string, minLength: 1, maxLength: 100}
+        phone: {type: string, nullable: true, maxLength: 64}
+        email: {type: string, format: email, nullable: true, maxLength: 254}
+        comment: {type: string, nullable: true, maxLength: 2000}
+        contactTypeId: {type: string, format: uuid, nullable: true}
+    Contact:
+      type: object
+      required: [id, name, role, authorId, createdAt, updatedAt, version, objects, canEdit, canDelete]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        role: {type: string}
+        phone: {type: string, nullable: true, enum: ['***', null]}
+        email: {type: string, format: email, nullable: true}
+        comment: {type: string, nullable: true}
+        contactTypeId: {type: string, format: uuid, nullable: true}
+        authorId: {type: string, format: uuid, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+        canEdit:
+          type: boolean
+          description: Manager of a linked object, regional manager in scope, director for linked contacts, or superadmin
+        canDelete:
+          type: boolean
+          description: True only for SUPERADMIN, independently of canEdit
+        objects:
+          type: array
+          items:
+            type: object
+            required: [id, name, status]
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+              status: {type: string}
+    Mutation:
+      type: object
+      required: [contact, duplicateContacts]
+      properties:
+        contact: {$ref: '#/components/schemas/Contact'}
+        warningCode: {type: string, nullable: true, enum: [CONTACT_PHONE_DUPLICATE, null]}
+        duplicateContacts:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [id, name, role]
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+              role: {type: string}
+    ApiError:
+      type: object
+      required: [timestamp, status, error, code, message, path, correlationId, violations]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        code: {type: string}
+        message: {type: string}
+        path: {type: string}
+        correlationId: {type: string}
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              message: {type: string}

@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261007-entry-point-approval-requests
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261007_entry_point_approval_requests.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql: DROP TABLE entry_point_approval_requests;

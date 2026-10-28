@@ -1,0 +1,102 @@
+/*
+ * Стили формы из макета входа. Лежат в ui/common, потому что их делят
+ * все компоненты shared/ui: поле, кнопка, алерт, сноска, шаги.
+ */
+.field + .field {
+  margin-top: 16px;
+}
+
+.fieldTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-600);
+}
+
+.hint {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-brand);
+  text-decoration: none;
+}
+
+.hint:hover {
+  text-decoration: underline;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.control:focus-within {
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 3px rgb(255 131 0 / 0.14);
+}
+
+.controlInvalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.1);
+}
+
+.input {
+  flex: 1;
+  height: 44px;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+}
+
+.input::placeholder {
+  color: var(--ink-400);
+}
+
+.input:disabled {
+  opacity: 0.6;
+}
+
+.controlButton {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.controlButton:hover {
+  color: var(--text-primary);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--danger);
+}

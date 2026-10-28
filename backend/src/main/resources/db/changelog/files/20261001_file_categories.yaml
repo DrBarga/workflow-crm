@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261001_file_categories
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261001_file_categories.sql
+            relativeToChangelogFile: true
+      rollback:
+        - dropTable:
+            tableName: file_categories

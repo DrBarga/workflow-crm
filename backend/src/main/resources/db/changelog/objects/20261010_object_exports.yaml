@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261010-object-exports
+      author: workflowcrm
+      changes:
+        - sql: |
+            CREATE TABLE object_exports (
+                id uuid PRIMARY KEY,
+                actor_id uuid NOT NULL,
+                format varchar(4) NOT NULL CHECK(format IN ('CSV','XLSX')),
+                filters jsonb NOT NULL,
+                scope jsonb NOT NULL,
+                state varchar(12) NOT NULL DEFAULT 'QUEUED' CHECK(state IN ('QUEUED','READY','FAILED','EXPIRED')),
+                requested_at timestamptz NOT NULL,
+                expires_at timestamptz NOT NULL,
+                completed_at timestamptz,
+                next_attempt_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                attempts integer NOT NULL DEFAULT 0 CHECK(attempts>=0),
+                row_count bigint NOT NULL DEFAULT 0 CHECK(row_count>=0),
+                size_bytes bigint NOT NULL DEFAULT 0 CHECK(size_bytes>=0),
+                bucket varchar(63) NOT NULL,
+                storage_key varchar(300) NOT NULL,
+                error varchar(40),
+                CHECK(expires_at>requested_at),
+                UNIQUE(bucket,storage_key)
+            );
+            CREATE INDEX ix_object_exports_queue ON object_exports(next_attempt_at,requested_at,id) WHERE state='QUEUED';
+            CREATE INDEX ix_object_exports_actor ON object_exports(actor_id,state,expires_at);
+            CREATE INDEX ix_object_exports_expiry ON object_exports(expires_at,id) WHERE state<>'EXPIRED';
+            CREATE TABLE object_export_audit (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                export_id uuid NOT NULL,
+                actor_id uuid NOT NULL,
+                event_type varchar(30) NOT NULL,
+                detail jsonb NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX ix_object_export_audit_actor ON object_export_audit(actor_id,created_at,id);
+      rollback:
+        - sql: DROP TABLE object_export_audit; DROP TABLE object_exports;

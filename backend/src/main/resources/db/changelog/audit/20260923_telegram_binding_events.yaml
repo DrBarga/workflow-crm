@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260923_telegram_binding_events
+      author: bohdan
+      changes:
+        - createTable:
+            tableName: telegram_binding_events
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    referencedTableName: users
+                    referencedColumnNames: id
+                    foreignKeyName: fk_telegram_binding_events_user
+              - column:
+                  name: chat_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: telegram_binding_events
+            indexName: ix_telegram_binding_events_user_created
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: created_at
+      rollback:
+        - dropTable:
+            tableName: telegram_binding_events

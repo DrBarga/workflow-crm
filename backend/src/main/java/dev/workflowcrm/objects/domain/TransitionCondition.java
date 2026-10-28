@@ -1,0 +1,10 @@
+package dev.workflowcrm.objects.domain;
+
+public enum TransitionCondition {
+    RESUME_PREVIOUS_STATUS,
+    NOT_RESUME_PREVIOUS_STATUS,
+    EARLY_STATUS_BEFORE_PAUSE,
+    EARLY_STATUS_BEFORE_REFUSAL,
+    CONTRACT_STATUS_BEFORE_PAUSE,
+    RESUME_EARLY_REFUSED
+}

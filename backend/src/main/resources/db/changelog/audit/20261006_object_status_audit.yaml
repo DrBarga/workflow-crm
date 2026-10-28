@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-object-status-audit
+      author: workflowcrm
+      changes:
+        - sql: |
+            CREATE TABLE object_status_audit (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                object_id uuid NOT NULL,
+                actor_id uuid NOT NULL,
+                object_version bigint NOT NULL CHECK (object_version>=0),
+                event_type varchar(100) NOT NULL,
+                detail jsonb NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX ix_object_status_audit_object ON object_status_audit(object_id,created_at);
+            CREATE INDEX ix_object_status_audit_actor ON object_status_audit(actor_id,created_at);
+      rollback:
+        - sql: DROP TABLE object_status_audit;

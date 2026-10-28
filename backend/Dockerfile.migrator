@@ -1,0 +1,18 @@
+# Образ миграций: официальный Liquibase плюс changelog проекта.
+#
+# Зачем отдельный образ, а не миграции из приложения: схема обязана быть готова
+# раньше, чем стартует контейнер app с hibernate ddl-auto=validate. Разовый
+# контейнер даёт понятный код возврата — деплой останавливается на миграции,
+# а не на упавшем приложении.
+#
+# Версия приезжает из pom.xml (job backend-build считает её через
+# help:evaluate). Прибивать её здесь литералом нельзя: разъедется с
+# liquibase-core приложения — и checksum'ы changeset посчитаются по-разному.
+ARG LIQUIBASE_VERSION
+
+FROM liquibase/liquibase:${LIQUIBASE_VERSION}
+
+# Путь внутри образа повторяет classpath приложения (db/changelog/...).
+# Вместе с LIQUIBASE_SEARCH_PATH в compose это даёт в databasechangelog
+# те же имена файлов, что записал бы Liquibase, запущенный из Spring.
+COPY src/main/resources/db/changelog /liquibase/changelog/db/changelog

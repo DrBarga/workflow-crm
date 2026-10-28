@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - include:
+      file: 20260923_telegram_binding_events.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20260930_password_setup_events.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261001_security_unlock_events.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261002_object_duplicate_decisions.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20261006_object_status_audit.yaml
+      relativeToChangelogFile: true

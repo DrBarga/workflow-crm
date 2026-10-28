@@ -1,0 +1,281 @@
+openapi: 3.0.3
+info:
+  title: Workflow CRM - Object status transitions
+  version: 1.5.0
+  description: 'T6712, T6713, T5775. Configured transitions, refusal tags, task preview, approvals and milestone changes. CANCEL affects only unfinished tasks in active sets of the source status; CANCEL_ALL affects all unfinished object tasks. An active target-status set suppresses preview and generation. Manual and IC refusal use CANCEL_ALL. Paused refusal permissions use the stage before pause. Contract type changes follow T5775 in every write API; passing the already selected type is allowed.'
+security:
+  - accessCookie: []
+paths:
+  /api/objects/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    get:
+      operationId: getObjectStatus
+      summary: Read status and current version
+      responses:
+        '200':
+          description: Current workflow state, Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status, version, fields]
+                properties:
+                  id: {type: string, format: uuid}
+                  status: {type: string}
+                  version: {type: integer, format: int64, minimum: 0}
+                  fields: {type: object, additionalProperties: {type: string, nullable: true}}
+                  refusalTag:
+                    allOf:
+                      - $ref: '#/components/schemas/RefusalTag'
+                    nullable: true
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Inactive user or object outside permitted scope'}
+        '404': {description: 'Object not found'}
+    post:
+      operationId: changeObjectStatus
+      summary: Request or perform a configured status transition
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StatusCommand'}
+      responses:
+        '200':
+          description: Saved transition, preview, or pending approval; inspect saved and approvalRequestId
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StatusResult'}
+        '400': {description: 'Malformed JSON or path UUID'}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Role, region, ownership, system-only transition or CSRF denied'}
+        '404': {description: 'Object not found'}
+        '409': {description: 'Stale version or preview, conflicting request or ambiguous configuration. Multiple active templates for the same pair return TASK_TEMPLATE_CONFIGURATION_ERROR.'}
+        '422':
+          description: Missing or invalid field, unavailable transition, historical tasks, invalid template or unfinished tasks
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TransitionError'}
+  /api/objects/{id}/refusal-reasons:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    get:
+      operationId: getManualObjectRefusalReasons
+      summary: Active manual refusal reasons for an accessible object
+      responses:
+        '200':
+          description: Dictionary sorted by name and code; inactive and system-only reasons excluded; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RefusalTag'}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Inactive user or object outside permitted scope'}
+        '404': {description: 'Object not found'}
+  /api/objects/{id}/milestones:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    patch:
+      operationId: changeObjectMilestones
+      summary: Signing or actual opening via configured transition requirements
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MilestoneCommand'}
+      responses:
+        '200':
+          description: Saved milestone or transition, task preview, or pending approval. A valid date blocked by required fields or tasks is saved with unchanged status and unmetConditions. Retry the same date after meeting conditions.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StatusResult'}
+        '400': {description: 'Malformed JSON or path UUID'}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Transition role, scope or CSRF denied'}
+        '404': {description: 'Object not found'}
+        '409': {description: 'Stale object version or preview; TASK_TEMPLATE_CONFIGURATION_ERROR for multiple matching active templates'}
+        '422': {description: 'Invalid fields or transition configuration'}
+  /api/objects/{objectId}/status-requests/{id}:
+    parameters:
+      - {in: path, name: objectId, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      operationId: getObjectStatusRequest
+      summary: Read a request as its initiator or configured approver
+      responses:
+        '200':
+          description: Request state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalRequest'}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Request belongs to another object or role or region denied'}
+        '404': {description: 'Object or request not found'}
+  /api/objects/{objectId}/status-requests/{id}/{action}:
+    parameters:
+      - {in: path, name: objectId, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/RequestId'
+      - {in: path, name: action, required: true, schema: {type: string, enum: [approve, reject, cancel]}}
+    post:
+      operationId: decideObjectStatusRequest
+      summary: Approve or reject as configured role; cancel as initiator
+      security:
+        - accessCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+                assignees: {$ref: './task-assignment.yaml#/components/schemas/AssigneeSelections'}
+      responses:
+        '200':
+          description: Decision persisted or approver task preview returned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StatusResult'}
+        '400': {description: 'Malformed request'}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Role, region, initiator rights or CSRF denied'}
+        '404': {description: 'Object, request or action not found'}
+        '409': {description: 'Request already resolved, stale or object or preview changed; TASK_TEMPLATE_CONFIGURATION_ERROR for multiple matching active templates'}
+        '422': {description: 'Invalid fields, tasks or transition configuration'}
+  /api/notifications:
+    get:
+      operationId: getMyNotifications
+      summary: Read up to 100 newest notifications for the current active user
+      responses:
+        '200':
+          description: Recipient's notifications only, Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    type: {type: string}
+                    objectId: {type: string, format: uuid, nullable: true}
+                    taskId: {type: string, format: uuid, nullable: true}
+                    createdAt: {type: string, format: date-time}
+        '401': {description: 'Session expired or absent'}
+        '403': {description: 'Inactive user'}
+components:
+  securitySchemes:
+    accessCookie: {type: apiKey, in: cookie, name: workflow_access_token}
+    csrfHeader: {type: apiKey, in: header, name: X-XSRF-TOKEN}
+  parameters:
+    ObjectId: {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    RequestId: {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    RefusalTag:
+      type: object
+      additionalProperties: false
+      required: [id, code, name]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+    StatusCommand:
+      type: object
+      additionalProperties: false
+      required: [status, version]
+      properties:
+        assignees: {$ref: './task-assignment.yaml#/components/schemas/AssigneeSelections'}
+        status: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}
+        version: {type: integer, format: int64, minimum: 0}
+        refusalReasonId: {type: string, format: uuid, nullable: true}
+        contractSignedDate: {type: string, format: date, nullable: true}
+        contractTypeId: {type: string, format: uuid, nullable: true}
+        preliminaryContractSignedDate: {type: string, format: date, nullable: true}
+        commissioningDate: {type: string, format: date, nullable: true}
+        constructionAcceptancePlannedDate: {type: string, format: date, nullable: true}
+        constructionTermDays: {type: integer, minimum: 0, maximum: 2147483647, nullable: true}
+        openingDate: {type: string, format: date, nullable: true}
+        openingPlannedDate: {type: string, format: date, nullable: true, deprecated: true, description: Optional legacy consistency check; must equal the calculated opening plan}
+        confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+    MilestoneCommand:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        assignees: {$ref: './task-assignment.yaml#/components/schemas/AssigneeSelections'}
+        version: {type: integer, format: int64, minimum: 0}
+        contractSignedDate: {type: string, format: date, nullable: true}
+        contractTypeId: {type: string, format: uuid, nullable: true}
+        preliminaryContractSignedDate: {type: string, format: date, nullable: true}
+        commissioningDate: {type: string, format: date, nullable: true}
+        constructionAcceptancePlannedDate: {type: string, format: date, nullable: true}
+        constructionTermDays: {type: integer, minimum: 0, maximum: 2147483647, nullable: true}
+        openingDate: {type: string, format: date, nullable: true}
+        openingPlannedDate: {type: string, format: date, nullable: true, deprecated: true, description: Optional legacy consistency check; must equal the calculated opening plan}
+        confirmationToken: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+    StatusResult:
+      type: object
+      required: [saved, id, status, version, tasks]
+      properties:
+        saved: {type: boolean}
+        id: {type: string, format: uuid}
+        status: {type: string}
+        version: {type: integer, format: int64, minimum: 0}
+        approvalRequestId: {type: string, format: uuid, nullable: true}
+        confirmationToken: {type: string, nullable: true}
+        unmetConditions:
+          $ref: './objects.yaml#/components/schemas/ObjectTransitionConditions'
+        tasks:
+          type: array
+          items: {$ref: './task-set-preview.yaml#/components/schemas/PlannedTask'}
+    ApprovalRequest:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        objectId: {type: string, format: uuid}
+        initiatorId: {type: string, format: uuid}
+        confirmingRoleId: {type: string, format: uuid}
+        transitionId: {type: string, format: uuid}
+        objectVersion: {type: integer, format: int64}
+        command: {type: string, description: Stored JSON command}
+        status: {type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED, STALE]}
+    TransitionError:
+      type: object
+      required: [status, code, message, violations]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        code: {type: string, description: TRANSITION_CONDITIONS_NOT_MET reports all missing required fields and tasks without writes}
+        unmetConditions:
+          $ref: './objects.yaml#/components/schemas/ObjectTransitionConditions'
+        message: {type: string}
+        path: {type: string}
+        correlationId: {type: string}
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              message: {type: string}
+        tasks:
+          type: array
+          description: Present for UNFINISHED_TASKS or TRANSITION_CONDITIONS_NOT_MET
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              version: {type: integer, format: int64}
+              name: {type: string}
+              status: {type: string}
+              assigneeId: {type: string, format: uuid}

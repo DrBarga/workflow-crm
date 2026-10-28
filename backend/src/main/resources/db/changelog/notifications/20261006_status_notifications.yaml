@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-status-notifications
+      author: workflowcrm
+      changes:
+        - sql: |
+            CREATE TABLE user_notifications (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                recipient_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                event_key varchar(250) NOT NULL,
+                event_type varchar(100) NOT NULL,
+                object_id uuid,
+                task_id uuid,
+                created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT ux_user_notifications_event UNIQUE(recipient_id,event_key)
+            );
+            CREATE INDEX ix_user_notifications_latest ON user_notifications(recipient_id,created_at,id);
+      rollback:
+        - sql: DROP TABLE user_notifications;

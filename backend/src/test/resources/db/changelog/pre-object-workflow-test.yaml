@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/pre-objects-test.yaml
+  - include:
+      file: db/changelog/objects/20261001_objects_model.yaml
+  - include:
+      file: db/changelog/files/changelog.yaml

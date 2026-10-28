@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261001_objects_model
+      author: bohdan
+      preConditions:
+        - dbms:
+            type: postgresql
+      changes:
+        - sqlFile:
+            path: 20261001_objects_schema.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261001_objects_schema_rollback.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 20261001_objects_reference_data
+      author: bohdan
+      changes:
+        - sqlFile:
+            path: 20261001_objects_seed.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261001_objects_seed_rollback.sql
+            relativeToChangelogFile: true

@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261020-task-preview
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261020_task_preview.sql, relativeToChangelogFile: true}
+      rollback:
+        - sqlFile: {path: 20261020_task_preview_rollback.sql, relativeToChangelogFile: true, splitStatements: false}

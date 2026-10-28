@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261005-tasks-ic-transition
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261005_tasks_ic_transition.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261005_tasks_ic_transition_rollback.sql
+            relativeToChangelogFile: true

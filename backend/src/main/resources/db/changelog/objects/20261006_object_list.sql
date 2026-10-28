@@ -1,0 +1,10 @@
+CREATE INDEX ix_objects_list_created ON objects (created_at, id);
+CREATE INDEX ix_objects_list_name ON objects (lower(name), id);
+CREATE INDEX ix_objects_list_ic_date ON objects (investment_committee_date ASC NULLS LAST, id);
+CREATE INDEX ix_objects_list_signed_date ON objects (contract_signed_date ASC NULLS LAST, id);
+CREATE INDEX ix_objects_list_region_created ON objects (region_id, created_at, id);
+CREATE INDEX ix_objects_list_manager_created ON objects (manager_id, created_at, id);
+CREATE INDEX ix_objects_list_status_created ON objects (status_id, created_at, id);
+CREATE INDEX ix_objects_list_type_created ON objects (object_type_id, created_at, id);
+CREATE INDEX ix_objects_list_search_name ON objects USING gin (name gin_trgm_ops);
+CREATE INDEX ix_objects_list_search_address ON objects USING gin (address gin_trgm_ops);

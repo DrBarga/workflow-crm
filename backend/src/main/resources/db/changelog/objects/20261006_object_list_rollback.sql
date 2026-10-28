@@ -1,0 +1,10 @@
+DROP INDEX ix_objects_list_search_address;
+DROP INDEX ix_objects_list_search_name;
+DROP INDEX ix_objects_list_type_created;
+DROP INDEX ix_objects_list_status_created;
+DROP INDEX ix_objects_list_manager_created;
+DROP INDEX ix_objects_list_region_created;
+DROP INDEX ix_objects_list_signed_date;
+DROP INDEX ix_objects_list_ic_date;
+DROP INDEX ix_objects_list_name;
+DROP INDEX ix_objects_list_created;

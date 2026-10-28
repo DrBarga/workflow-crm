@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - include:
+      file: 20260904_users_auth_model.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20260914_users_access_history.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20260915_telegram_binding.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 20260916_users_invitations.yaml
+      relativeToChangelogFile: true

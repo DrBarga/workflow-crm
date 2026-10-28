@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261006-object-list-indexes
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261006_object_list.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: 20261006_object_list_rollback.sql
+            relativeToChangelogFile: true

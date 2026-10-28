@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261022-task-deadlines
+      author: workflowcrm
+      changes:
+        - sqlFile: {path: 20261022_task_deadlines.sql, relativeToChangelogFile: true}
+      rollback:
+        - sql: ALTER TABLE task_template_items DROP COLUMN deadline_rule;

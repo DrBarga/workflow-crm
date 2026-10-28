@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/pre-object-transition-policy-test.yaml
+  - include:
+      file: db/changelog/objects/20261002_objects_transition_policy.yaml

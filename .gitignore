@@ -1,0 +1,44 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+
+# Build output and dependencies
+backend/target/
+backend/build/
+client/node_modules/
+client/.next/
+client/out/
+client/dist/
+client/coverage/
+client/*.tsbuildinfo
+*.class
+*.jar
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# Local data and reports
+*.log
+*.dump
+*.sqlite*
+*.zip
+output/
+logs/
+tmp/
+volumes/
+.docker/data/
+docker-compose.override.yml
+
+# Editor and operating system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini

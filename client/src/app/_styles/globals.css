@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+:root {
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+  --accent: var(--brand-500);
+}
+
+/*
+ * Breakpoint tokens (see shared/config/breakpoints.ts for the same values
+ * used in TS). Tailwind v4 turns --breakpoint-* theme keys into responsive
+ * variants, e.g. `tablet:flex`.
+ */
+@theme {
+  --breakpoint-mobile: 340px;
+  --breakpoint-tablet: 780px;
+  --breakpoint-desktop: 1280px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-commissioner);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-commissioner), "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261002_object_duplicate_decisions
+      author: workflowcrm
+      changes:
+        - sqlFile:
+            path: 20261002_object_duplicate_decisions.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql: DROP TABLE object_duplicate_decisions
